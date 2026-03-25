@@ -1,6 +1,8 @@
 packages:
   - apps/*
   - packages/*
+  - apps/desktop/frontend
 allowBuilds:
   esbuild: true
   msw: true
+  sharp: true
