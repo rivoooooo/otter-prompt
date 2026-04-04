@@ -1,12 +1,7 @@
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
 import { useNavigate, useOutletContext } from "react-router"
-import { useEffect, useState } from "react"
 import { ChevronDownIcon, SaveIcon, SendIcon, SparklesIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@workspace/ui/components/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import { Input } from "@workspace/ui/components/input"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { cn } from "@workspace/ui/lib/utils"
@@ -30,6 +26,7 @@ import {
   getEffectiveProviderConfig,
   type AppSettings,
 } from "../lib/app-settings"
+import { estimateTokensForPreset } from "../lib/token-estimation"
 import type { WorkspaceShellContext } from "./workspace"
 
 type ChatMessage = {
@@ -38,8 +35,87 @@ type ChatMessage = {
   content: string
 }
 
+type FileNameParts = {
+  baseName: string
+  extension: string
+}
+
 const SYSTEM_PROMPT_KEY = "otter.systemPrompt"
 const nextId = () => Math.random().toString(36).slice(2)
+
+function splitFileName(path: string): FileNameParts {
+  const fileName = path.split(/[/\\]/).filter(Boolean).pop() || ""
+
+  if (!fileName) {
+    return {
+      baseName: "",
+      extension: "",
+    }
+  }
+
+  const lastDotIndex = fileName.lastIndexOf(".")
+  if (lastDotIndex <= 0) {
+    return {
+      baseName: fileName,
+      extension: "",
+    }
+  }
+
+  return {
+    baseName: fileName.slice(0, lastDotIndex),
+    extension: fileName.slice(lastDotIndex),
+  }
+}
+
+function normalizeExtension(extension: string) {
+  const trimmedExtension = extension.trim()
+  if (!trimmedExtension) {
+    return ""
+  }
+
+  return trimmedExtension.startsWith(".")
+    ? trimmedExtension
+    : `.${trimmedExtension}`
+}
+
+function buildRenamedFilePath(
+  currentPath: string,
+  baseName: string,
+  extension: string
+) {
+  const nextFileName = `${baseName}${normalizeExtension(extension)}`
+  const separatorIndex = Math.max(
+    currentPath.lastIndexOf("/"),
+    currentPath.lastIndexOf("\\")
+  )
+
+  if (separatorIndex < 0) {
+    return nextFileName
+  }
+
+  return `${currentPath.slice(0, separatorIndex + 1)}${nextFileName}`
+}
+
+function getWordCount(text: string) {
+  const matches = text.trim().match(/\S+/g)
+  return matches?.length || 0
+}
+
+function getCharacterCount(text: string) {
+  return Array.from(text).length
+}
+
+function getLineCount(text: string) {
+  if (!text) {
+    return 0
+  }
+
+  return text.split(/\r?\n/).length
+}
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat().format(value)
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -47,10 +123,12 @@ export default function Home() {
     activeFile,
     fileContent,
     hasActiveFile,
+    isFileDirty,
     syncStatus,
     setFileContent,
     setError,
     saveActiveFile,
+    renameActiveFile,
     deleteActiveFile,
   } = useOutletContext<WorkspaceShellContext>()
 
@@ -58,21 +136,93 @@ export default function Home() {
   const [chatInput, setChatInput] = useState("")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [settings, setSettings] = useState<AppSettings>(getAppSettings())
-  const [promptOpen, setPromptOpen] = useState(true)
-  const [fileOpen, setFileOpen] = useState(true)
   const [clusterOpen, setClusterOpen] = useState(false)
   const [chatRunning, setChatRunning] = useState(false)
+  const [fileBaseName, setFileBaseName] = useState("")
+  const [fileExtension, setFileExtension] = useState("")
+  const [renameRunning, setRenameRunning] = useState(false)
 
   useEffect(() => {
     setSettings(getAppSettings())
     setSystemPrompt(window.localStorage.getItem(SYSTEM_PROMPT_KEY) || "")
   }, [])
 
+  useEffect(() => {
+    const nextParts = splitFileName(activeFile)
+    setFileBaseName(nextParts.baseName)
+    setFileExtension(nextParts.extension)
+  }, [activeFile])
+
   const effectiveProvider = getEffectiveProviderConfig(settings)
+  const contentStats = useMemo(
+    () => ({
+      characters: getCharacterCount(fileContent),
+      words: getWordCount(fileContent),
+      lines: getLineCount(fileContent),
+      tokens: estimateTokensForPreset(
+        fileContent,
+        settings.general.tokenCounterPreset
+      ),
+    }),
+    [fileContent, settings.general.tokenCounterPreset]
+  )
 
   async function saveWorkspace() {
     window.localStorage.setItem(SYSTEM_PROMPT_KEY, systemPrompt)
     await saveActiveFile()
+  }
+
+  async function commitFileRename() {
+    if (!hasActiveFile || renameRunning) {
+      return
+    }
+
+    const nextBaseName = fileBaseName.trim()
+    if (!nextBaseName) {
+      setError("file name is required")
+      return
+    }
+
+    const normalizedExtension = normalizeExtension(fileExtension)
+    const nextPath = buildRenamedFilePath(
+      activeFile,
+      nextBaseName,
+      normalizedExtension
+    )
+
+    setFileBaseName(nextBaseName)
+    setFileExtension(normalizedExtension)
+
+    if (nextPath === activeFile) {
+      return
+    }
+
+    setRenameRunning(true)
+
+    try {
+      const renamedPath = await renameActiveFile(nextPath)
+      const nextParts = splitFileName(renamedPath)
+      setFileBaseName(nextParts.baseName)
+      setFileExtension(nextParts.extension)
+    } catch (cause) {
+      setError(String(cause))
+    } finally {
+      setRenameRunning(false)
+    }
+  }
+
+  function handleRenameKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault()
+      void commitFileRename()
+      return
+    }
+
+    if (event.key === "Escape") {
+      const nextParts = splitFileName(activeFile)
+      setFileBaseName(nextParts.baseName)
+      setFileExtension(nextParts.extension)
+    }
   }
 
   async function runChat() {
@@ -164,17 +314,34 @@ export default function Home() {
 
   return (
     <div className="app-main-grid">
-      <main className="app-panel flex min-h-0 flex-col">
-        <div className="app-toolbar">
-          <div>
+      <main className="app-panel app-editor-panel">
+        <div className="app-toolbar app-editor-toolbar">
+          <div className="app-editor-heading">
             <p className="text-xs tracking-[0.12px] text-muted-foreground">
-              Workspace
+              File
             </p>
-            <h1 className="font-heading text-[1.75rem] leading-[1.2]">
-              Prompt Editor
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {activeFile || "No file selected"}
+            <div className="app-editor-title-row">
+              <Input
+                value={fileBaseName}
+                onChange={(event) => setFileBaseName(event.target.value)}
+                onBlur={() => void commitFileRename()}
+                onKeyDown={handleRenameKeyDown}
+                placeholder="untitled"
+                disabled={!hasActiveFile || renameRunning}
+                className="app-editor-title-input"
+              />
+              <Input
+                value={fileExtension}
+                onChange={(event) => setFileExtension(event.target.value)}
+                onBlur={() => void commitFileRename()}
+                onKeyDown={handleRenameKeyDown}
+                placeholder=".md"
+                disabled={!hasActiveFile || renameRunning}
+                className="app-editor-extension-input"
+              />
+            </div>
+            <p className="app-editor-path">
+              {activeFile || "No file available in this project."}
             </p>
           </div>
           <div className="app-toolbar-actions">
@@ -185,9 +352,6 @@ export default function Home() {
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => setSystemPrompt("")}>
-                    Clear Prompt
-                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() =>
                       deleteActiveFile().catch((cause) =>
@@ -212,68 +376,49 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <Collapsible open={promptOpen} onOpenChange={setPromptOpen}>
-            <div className="app-section-card">
-              <CollapsibleTrigger
-                render={
-                  <button className="flex w-full items-center justify-between px-3 py-2 text-left" />
-                }
-              >
-                <span className="font-medium">System Prompt</span>
-                <ChevronDownIcon
-                  className={`transition ${promptOpen ? "rotate-180" : ""}`}
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-3 pt-0">
-                  <Textarea
-                    value={systemPrompt}
-                    onChange={(event) => setSystemPrompt(event.target.value)}
-                    placeholder="Write system prompt here."
-                    className="min-h-[35svh]"
-                  />
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
+        <div className="app-editor-shell">
+          <div className="app-editor-surface">
+            <Textarea
+              value={fileContent}
+              onChange={(event) => setFileContent(event.target.value)}
+              placeholder="No file available in this project."
+              disabled={!hasActiveFile}
+              className="app-editor-textarea font-mono"
+            />
+          </div>
 
-          <Collapsible open={fileOpen} onOpenChange={setFileOpen}>
-            <div className="app-section-card">
-              <CollapsibleTrigger
-                render={
-                  <button className="flex w-full items-center justify-between px-3 py-2 text-left" />
-                }
-              >
-                <span className="font-medium">Active File Content</span>
-                <ChevronDownIcon
-                  className={`transition ${fileOpen ? "rotate-180" : ""}`}
-                />
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="p-3 pt-0">
-                  <Textarea
-                    value={fileContent}
-                    onChange={(event) => setFileContent(event.target.value)}
-                    placeholder="Select a file from the left tree."
-                    className="min-h-[22svh] font-mono"
-                  />
-                </div>
-              </CollapsibleContent>
+          <div className="app-editor-footer">
+            <div className="app-status-line app-editor-status-line">
+              <span className="app-pill">
+                {hasActiveFile
+                  ? isFileDirty
+                    ? "Status: Unsaved"
+                    : "Status: Saved"
+                  : "Status: No file"}
+              </span>
+              <span className="app-pill">
+                Chars: {formatCount(contentStats.characters)}
+              </span>
+              <span className="app-pill">
+                Words: {formatCount(contentStats.words)}
+              </span>
+              <span className="app-pill">
+                Tokens: {formatCount(contentStats.tokens)}
+              </span>
+              <span className="app-pill">
+                Lines: {formatCount(contentStats.lines)}
+              </span>
+              <span className="app-pill">
+                Last sync: {syncStatus?.local?.lastSyncedAt || "never"}
+              </span>
+              <span className="app-pill">
+                Cloud rev: {syncStatus?.cloud?.revision ?? 0}
+              </span>
+              <span className="app-pill">
+                Conflicts: {syncStatus?.local?.conflicts?.length || 0}
+              </span>
             </div>
-          </Collapsible>
-        </div>
-
-        <div className="app-status-line flex flex-wrap gap-2">
-          <span className="app-pill">
-            Last sync: {syncStatus?.local?.lastSyncedAt || "never"}
-          </span>
-          <span className="app-pill">
-            Cloud rev: {syncStatus?.cloud?.revision ?? 0}
-          </span>
-          <span className="app-pill">
-            Conflicts: {syncStatus?.local?.conflicts?.length || 0}
-          </span>
+          </div>
         </div>
       </main>
 
@@ -295,6 +440,9 @@ export default function Home() {
                 <ChevronDownIcon data-icon="inline-end" />
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setSystemPrompt("")}>
+                  Clear Prompt
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setChatMessages([])}>
                   Clear Conversation
                 </DropdownMenuItem>
@@ -308,6 +456,16 @@ export default function Home() {
               Cluster Test
             </Button>
           </div>
+        </div>
+
+        <div className="app-chat-settings">
+          <p className="app-chat-settings-label">System Prompt</p>
+          <Textarea
+            value={systemPrompt}
+            onChange={(event) => setSystemPrompt(event.target.value)}
+            placeholder="Write system prompt here."
+            className="min-h-28"
+          />
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col">

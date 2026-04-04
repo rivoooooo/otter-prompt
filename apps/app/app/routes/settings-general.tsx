@@ -161,6 +161,51 @@ export default function SettingsGeneralRoute() {
             </fieldset>
           </div>
 
+          <div className="settings-item">
+            <div className="settings-item-copy">
+              <p className="settings-item-label">Token Counter</p>
+              <p className="settings-item-hint">
+                Choose the built-in estimator used in document footer stats.
+              </p>
+            </div>
+            <fieldset className="settings-option-stack">
+              <label className="settings-choice-item">
+                <input
+                  type="radio"
+                  name="token-counter-preset"
+                  checked={draft.general.tokenCounterPreset === "chatgpt"}
+                  onChange={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      general: {
+                        ...current.general,
+                        tokenCounterPreset: "chatgpt",
+                      },
+                    }))
+                  }
+                />
+                <span>ChatGPT</span>
+              </label>
+              <label className="settings-choice-item">
+                <input
+                  type="radio"
+                  name="token-counter-preset"
+                  checked={draft.general.tokenCounterPreset === "claude"}
+                  onChange={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      general: {
+                        ...current.general,
+                        tokenCounterPreset: "claude",
+                      },
+                    }))
+                  }
+                />
+                <span>Claude</span>
+              </label>
+            </fieldset>
+          </div>
+
           <div className="settings-item settings-item--split">
             <div className="settings-item-copy">
               <p className="settings-item-label">Project Import Behavior</p>

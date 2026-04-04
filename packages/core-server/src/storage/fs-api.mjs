@@ -3,6 +3,7 @@ export {
   deletePath,
   listTree,
   readTextFile,
+  renamePath,
   writeTextFile,
 } from "./local-fs.mjs"
 

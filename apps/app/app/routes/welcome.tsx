@@ -15,8 +15,8 @@ export default function WelcomePage() {
           create/import a project workspace.
         </p>
         <p className="text-sm text-muted-foreground">
-          Project pages now use URL parameters. Each project opens at{" "}
-          <code>/projects/:projectId</code>.
+          Manage imported workspaces at <code>/projects</code>. Each project now
+          opens at <code>/project/:projectId</code>.
         </p>
       </section>
     </main>

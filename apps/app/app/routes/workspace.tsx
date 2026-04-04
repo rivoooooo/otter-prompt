@@ -1,16 +1,21 @@
 import { Link, Outlet, useLocation, useNavigate, useParams } from "react-router"
 import { useEffect, useMemo, useState } from "react"
-import { FolderOpenIcon, PlusIcon } from "lucide-react"
+import { EllipsisIcon, FolderOpenIcon, PlusIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@workspace/ui/components/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
 import { Input } from "@workspace/ui/components/input"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import {
   Sidebar,
   SidebarContent,
@@ -27,20 +32,15 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { DirectoryBrowser } from "../components/directory-browser"
 import { apiRequest } from "../lib/api-client"
-import { getAppSettings } from "../lib/app-settings"
 import {
   fetchFile,
   fetchTree,
   removePath,
+  renameFile,
   saveFile,
   type TreeNode,
 } from "../lib/fs-api"
-
-type Project = {
-  id: string
-  name: string
-  localPath: string
-}
+import { createProject, listProjects, type Project } from "../lib/projects"
 
 type SyncStatus = {
   local?: {
@@ -56,57 +56,29 @@ export type WorkspaceShellContext = {
   activeFile: string
   fileContent: string
   hasActiveFile: boolean
+  isFileDirty: boolean
   syncStatus: SyncStatus | null
   error: string
   setError: (message: string) => void
   setFileContent: (value: string) => void
   saveActiveFile: () => Promise<void>
+  renameActiveFile: (nextPath: string) => Promise<string>
   deleteActiveFile: () => Promise<void>
 }
 
-function FileTree({
-  node,
-  activeFile,
-  onSelect,
-}: {
-  node: TreeNode
-  activeFile: string
-  onSelect: (node: TreeNode) => void
-}) {
+function findFirstFile(node: TreeNode): TreeNode | null {
   if (node.type === "file") {
-    const isActive = node.path === activeFile
-
-    return (
-      <button
-        className={`w-full truncate rounded-md px-2 py-1 text-left text-sm ${
-          isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "hover:bg-sidebar-accent"
-        }`}
-        onClick={() => onSelect(node)}
-      >
-        {node.name}
-      </button>
-    )
+    return node
   }
 
-  return (
-    <div className="flex flex-col gap-1">
-      <p className="truncate px-2 text-xs text-sidebar-foreground/70">
-        {node.name}
-      </p>
-      <div className="flex flex-col gap-1 border-l border-sidebar-border pl-3">
-        {(node.children || []).map((child) => (
-          <FileTree
-            key={child.path}
-            node={child}
-            activeFile={activeFile}
-            onSelect={onSelect}
-          />
-        ))}
-      </div>
-    </div>
-  )
+  for (const child of node.children || []) {
+    const nextFile = findFirstFile(child)
+    if (nextFile) {
+      return nextFile
+    }
+  }
+
+  return null
 }
 
 export default function WorkspaceRoute() {
@@ -115,22 +87,26 @@ export default function WorkspaceRoute() {
   const params = useParams()
 
   const [projects, setProjects] = useState<Project[]>([])
-  const [tree, setTree] = useState<TreeNode | null>(null)
   const [newProjectPath, setNewProjectPath] = useState("")
   const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
   const [activeFile, setActiveFile] = useState("")
   const [fileContent, setFileContent] = useState("")
+  const [savedFileContent, setSavedFileContent] = useState("")
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [error, setError] = useState("")
 
   const hasActiveFile = useMemo(() => Boolean(activeFile), [activeFile])
+  const isFileDirty = useMemo(
+    () => hasActiveFile && fileContent !== savedFileContent,
+    [fileContent, hasActiveFile, savedFileContent]
+  )
   const activeProject = useMemo(
     () => projects.find((project) => project.id === params.projectId) || null,
     [projects, params.projectId]
   )
 
   useEffect(() => {
-    apiRequest<{ projects: Project[] }>("/projects")
+    listProjects()
       .then((body) => {
         setProjects(body.projects)
       })
@@ -139,27 +115,42 @@ export default function WorkspaceRoute() {
 
   useEffect(() => {
     if (
-      location.pathname.startsWith("/projects/") &&
+      location.pathname.startsWith("/project/") &&
       params.projectId &&
       projects.length > 0 &&
       !activeProject
     ) {
-      navigate(`/projects/${projects[0].id}`, { replace: true })
+      navigate(`/project/${projects[0].id}`, { replace: true })
     }
   }, [location.pathname, params.projectId, projects, activeProject, navigate])
 
   useEffect(() => {
     if (!activeProject?.localPath) {
-      setTree(null)
       setActiveFile("")
       setFileContent("")
+      setSavedFileContent("")
       return
     }
 
     fetchTree(activeProject.localPath)
-      .then((nextTree) => setTree(nextTree))
+      .then(async (nextTree) => {
+        const nextFile = findFirstFile(nextTree)
+        const isCurrentFileInProject =
+          activeFile === activeProject.localPath ||
+          activeFile.startsWith(`${activeProject.localPath}/`) ||
+          activeFile.startsWith(`${activeProject.localPath}\\`)
+
+        if (isCurrentFileInProject || !nextFile) {
+          return
+        }
+
+        const content = await fetchFile(nextFile.path)
+        setActiveFile(nextFile.path)
+        setFileContent(content)
+        setSavedFileContent(content)
+      })
       .catch((cause) => setError(String(cause)))
-  }, [activeProject])
+  }, [activeFile, activeProject])
 
   useEffect(() => {
     if (!activeProject?.id) {
@@ -174,22 +165,24 @@ export default function WorkspaceRoute() {
       .catch(() => setSyncStatus(null))
   }, [activeProject?.id])
 
-  async function loadFile(node: TreeNode) {
-    if (node.type !== "file") {
-      return
-    }
-
-    setActiveFile(node.path)
-    const content = await fetchFile(node.path)
-    setFileContent(content)
-  }
-
   async function saveActiveFile() {
     if (!activeFile) {
       return
     }
 
     await saveFile(activeFile, fileContent)
+    setSavedFileContent(fileContent)
+  }
+
+  async function renameActiveFile(nextPath: string) {
+    if (!activeFile) {
+      return activeFile
+    }
+
+    const renamedPath = await renameFile(activeFile, nextPath)
+    setActiveFile(renamedPath)
+
+    return renamedPath
   }
 
   async function deleteActiveFile() {
@@ -199,13 +192,22 @@ export default function WorkspaceRoute() {
 
     await removePath(activeFile)
 
-    setActiveFile("")
-    setFileContent("")
-
     if (activeProject?.localPath) {
       const nextTree = await fetchTree(activeProject.localPath)
-      setTree(nextTree)
+      const nextFile = findFirstFile(nextTree)
+
+      if (nextFile) {
+        const content = await fetchFile(nextFile.path)
+        setActiveFile(nextFile.path)
+        setFileContent(content)
+        setSavedFileContent(content)
+        return
+      }
     }
+
+    setActiveFile("")
+    setFileContent("")
+    setSavedFileContent("")
   }
 
   async function addProject() {
@@ -213,17 +215,7 @@ export default function WorkspaceRoute() {
       return
     }
 
-    const settings = getAppSettings()
-
-    const body = await apiRequest<{ project: Project }>(`/projects`, {
-      method: "POST",
-      body: JSON.stringify({
-        localPath: newProjectPath,
-        name: newProjectPath.split("/").filter(Boolean).pop() || "Project",
-        allowDuplicateLocalPath:
-          settings.general.allowDuplicateLocalPathAsNewProject,
-      }),
-    })
+    const body = await createProject(newProjectPath)
 
     setProjects((current) => {
       if (current.some((project) => project.id === body.project.id)) {
@@ -234,18 +226,20 @@ export default function WorkspaceRoute() {
     })
 
     setNewProjectPath("")
-    navigate(`/projects/${body.project.id}`)
+    navigate(`/project/${body.project.id}`)
   }
 
   const context: WorkspaceShellContext = {
     activeFile,
     fileContent,
     hasActiveFile,
+    isFileDirty,
     syncStatus,
     error,
     setError,
     setFileContent,
     saveActiveFile,
+    renameActiveFile,
     deleteActiveFile,
   }
 
@@ -253,11 +247,11 @@ export default function WorkspaceRoute() {
     <SidebarProvider defaultOpen>
       <Sidebar collapsible="icon">
         <SidebarHeader>
-          <div className="flex items-center gap-2">
-            <SidebarTrigger />
-            <span className="truncate font-medium group-data-[collapsible=icon]:hidden">
-              Projects
+          <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
+            <span className="font-heading truncate text-xl leading-none font-bold group-data-[collapsible=icon]:hidden">
+              Otter
             </span>
+            <SidebarTrigger />
           </div>
         </SidebarHeader>
 
@@ -269,65 +263,91 @@ export default function WorkspaceRoute() {
               <SidebarGroupLabel className="h-auto px-0 py-0">
                 Project List
               </SidebarGroupLabel>
-              <Dialog
-                open={addProjectDialogOpen}
-                onOpenChange={setAddProjectDialogOpen}
-              >
-                <DialogTrigger render={<Button variant="ghost" />}>
-                  <PlusIcon data-icon="inline-start" />
-                  Add
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add Project</DialogTitle>
-                  </DialogHeader>
-                  <div className="flex flex-col gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      Default roots include <code>~</code> and your used project
-                      directories.
-                    </p>
-                    <DirectoryBrowser
-                      selectedPath={newProjectPath}
-                      onSelect={setNewProjectPath}
-                      onError={setError}
-                    />
-                    <Input
-                      placeholder="/absolute/path/to/project"
-                      value={newProjectPath}
-                      onChange={(event) =>
-                        setNewProjectPath(event.target.value)
-                      }
-                    />
-                    <div className="flex justify-end">
+              <div className="flex items-center gap-1">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
                       <Button
-                        variant="outline"
-                        onClick={() =>
-                          apiRequest<{ path: string }>("/dialog/directory", {
-                            method: "POST",
-                          })
-                            .then((body) => setNewProjectPath(body.path))
-                            .catch((cause) => setError(String(cause)))
-                        }
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Project actions"
+                        title="Project actions"
+                      />
+                    }
+                  >
+                    <EllipsisIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onClick={() => setAddProjectDialogOpen(true)}
                       >
-                        <FolderOpenIcon data-icon="inline-start" />
-                        Use System Picker
-                      </Button>
-                    </div>
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={() =>
-                          addProject()
-                            .then(() => setAddProjectDialogOpen(false))
-                            .catch((cause) => setError(String(cause)))
+                        <PlusIcon />
+                        Add
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate("/projects")}>
+                        <FolderOpenIcon />
+                        Manager
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Dialog
+                  open={addProjectDialogOpen}
+                  onOpenChange={setAddProjectDialogOpen}
+                >
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Project</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        Default roots include <code>~</code> and your used
+                        project directories.
+                      </p>
+                      <DirectoryBrowser
+                        selectedPath={newProjectPath}
+                        onSelect={setNewProjectPath}
+                        onError={setError}
+                      />
+                      <Input
+                        placeholder="/absolute/path/to/project"
+                        value={newProjectPath}
+                        onChange={(event) =>
+                          setNewProjectPath(event.target.value)
                         }
-                        disabled={!newProjectPath.trim()}
-                      >
-                        Save Project
-                      </Button>
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            apiRequest<{ path: string }>("/dialog/directory", {
+                              method: "POST",
+                            })
+                              .then((body) => setNewProjectPath(body.path))
+                              .catch((cause) => setError(String(cause)))
+                          }
+                        >
+                          <FolderOpenIcon data-icon="inline-start" />
+                          Use System Picker
+                        </Button>
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() =>
+                            addProject()
+                              .then(() => setAddProjectDialogOpen(false))
+                              .catch((cause) => setError(String(cause)))
+                          }
+                          disabled={!newProjectPath.trim()}
+                        >
+                          Save Project
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
             <SidebarGroupContent className="flex flex-col gap-1">
               {projects.map((project) => (
@@ -338,7 +358,7 @@ export default function WorkspaceRoute() {
                       ? "bg-sidebar-accent text-sidebar-accent-foreground"
                       : "hover:bg-sidebar-accent"
                   }`}
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => navigate(`/project/${project.id}`)}
                   title={project.name}
                 >
                   {project.name}
@@ -347,26 +367,6 @@ export default function WorkspaceRoute() {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-            <SidebarGroupLabel>Files</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <ScrollArea className="h-[45svh] pr-2">
-                {tree ? (
-                  <FileTree
-                    node={tree}
-                    activeFile={activeFile}
-                    onSelect={loadFile}
-                  />
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    {projects.length === 0
-                      ? "No projects yet. Add one from above."
-                      : "Open a project to browse files."}
-                  </p>
-                )}
-              </ScrollArea>
-            </SidebarGroupContent>
-          </SidebarGroup>
         </SidebarContent>
 
         <SidebarFooter className="group-data-[collapsible=icon]:hidden">

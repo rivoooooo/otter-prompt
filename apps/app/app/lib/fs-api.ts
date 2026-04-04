@@ -34,6 +34,14 @@ export async function saveFile(path: string, content: string) {
   })
 }
 
+export async function renameFile(fromPath: string, toPath: string) {
+  const body = await apiRequest<{ path: string }>(`/fs/rename`, {
+    method: "POST",
+    body: JSON.stringify({ fromPath, toPath }),
+  })
+  return body.path
+}
+
 export async function removePath(path: string) {
   await apiRequest(`/file?path=${encodeURIComponent(path)}`, {
     method: "DELETE",

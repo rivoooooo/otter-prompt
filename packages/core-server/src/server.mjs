@@ -23,6 +23,7 @@ import {
   listDirectoryRoots,
   listTree,
   readTextFile,
+  renamePath,
   writeTextFile,
 } from "./storage/fs-api.mjs"
 import { streamChat } from "./ai/ai-client.mjs"
@@ -336,6 +337,26 @@ export function createCoreServer() {
         } catch (error) {
           const message =
             error instanceof Error ? error.message : "failed to create directory"
+          const status = message.includes("exist") ? 409 : 400
+          return json(res, status, { error: message })
+        }
+      }
+
+      if (method === "POST" && url.pathname === "/fs/rename") {
+        const body = await readBody(req)
+        if (!body?.fromPath) {
+          return json(res, 400, { error: "fromPath is required" })
+        }
+        if (!body?.toPath) {
+          return json(res, 400, { error: "toPath is required" })
+        }
+
+        try {
+          const path = await renamePath(body.fromPath, body.toPath)
+          return json(res, 200, { path })
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "failed to rename path"
           const status = message.includes("exist") ? 409 : 400
           return json(res, status, { error: message })
         }

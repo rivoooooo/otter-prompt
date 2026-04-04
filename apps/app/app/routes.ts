@@ -8,7 +8,8 @@ import {
 export default [
   layout("routes/workspace.tsx", [
     index("routes/welcome.tsx"),
-    route("projects/:projectId", "routes/home.tsx"),
+    route("projects", "routes/projects.tsx"),
+    route("project/:projectId", "routes/home.tsx"),
     route("settings", "routes/settings.tsx", [
       index("routes/settings-index.tsx"),
       route("general", "routes/settings-general.tsx"),

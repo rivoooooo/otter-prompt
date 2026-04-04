@@ -20,6 +20,7 @@ const ALLOW_DUPLICATE_LOCAL_PATH_KEY =
   "otter.allowDuplicateLocalPathAsNewProject"
 
 export type ClusterOpenMode = "dialog" | "page"
+export type TokenCounterPreset = "chatgpt" | "claude"
 
 export type ModelSettings = {
   id: string
@@ -40,6 +41,7 @@ export type GeneralSettings = {
   defaultProviderId: string
   clusterOpenMode: ClusterOpenMode
   allowDuplicateLocalPathAsNewProject: boolean
+  tokenCounterPreset: TokenCounterPreset
 }
 
 export type AppSettings = {
@@ -52,6 +54,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   defaultProviderId: getDefaultProviderId(),
   clusterOpenMode: "dialog",
   allowDuplicateLocalPathAsNewProject: false,
+  tokenCounterPreset: "chatgpt",
 }
 
 function cloneModel(model: ModelSettings): ModelSettings {
@@ -181,6 +184,10 @@ function normalizeSettings(candidate: Partial<AppSettings> | null | undefined) {
         "boolean"
           ? candidate.general.allowDuplicateLocalPathAsNewProject
           : defaults.general.allowDuplicateLocalPathAsNewProject,
+      tokenCounterPreset:
+        candidate?.general?.tokenCounterPreset === "claude"
+          ? "claude"
+          : defaults.general.tokenCounterPreset,
     },
     providers,
   } satisfies AppSettings
@@ -202,6 +209,7 @@ export function migrateLegacySettings() {
     ALLOW_DUPLICATE_LOCAL_PATH_KEY,
     DEFAULT_GENERAL_SETTINGS.allowDuplicateLocalPathAsNewProject
   )
+  next.general.tokenCounterPreset = DEFAULT_GENERAL_SETTINGS.tokenCounterPreset
   next.general.serviceBaseUrl = getServiceBaseUrl()
   next.providers[legacyProviderId] = {
     ...providerSettings,
