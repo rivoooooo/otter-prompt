@@ -94,11 +94,23 @@ export async function listProjects() {
 
 export async function createProject(input) {
   const state = await readState()
+  const localPath = String(input.localPath || "").trim()
+  const allowDuplicateLocalPath = Boolean(input.allowDuplicateLocalPath)
+
+  if (!allowDuplicateLocalPath) {
+    const existing = state.projects.find(
+      (project) => String(project.localPath || "").trim() === localPath
+    )
+    if (existing) {
+      return existing
+    }
+  }
+
   const now = new Date().toISOString()
   const project = {
     id: randomUUID(),
     name: input.name || "Untitled Project",
-    localPath: input.localPath,
+    localPath,
     gitEnabled: Boolean(input.gitEnabled),
     createdAt: now,
     updatedAt: now,

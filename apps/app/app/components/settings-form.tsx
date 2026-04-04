@@ -28,7 +28,7 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
 
   const canResetBaseUrl = useMemo(
     () => draft.serviceBaseUrl !== DEFAULT_SETTINGS.serviceBaseUrl,
-    [draft.serviceBaseUrl],
+    [draft.serviceBaseUrl]
   )
 
   useEffect(() => {
@@ -38,9 +38,11 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
   }, [])
 
   return (
-    <Card>
+    <Card className="app-section-card border-0 shadow-none">
       <CardHeader>
-        <CardTitle>Settings</CardTitle>
+        <CardTitle className="font-heading text-2xl leading-[1.2]">
+          Settings
+        </CardTitle>
         <CardDescription>
           Configure service base URL, provider, model and API key.
         </CardDescription>
@@ -65,7 +67,10 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
           <Input
             value={draft.provider}
             onChange={(event) =>
-              setDraft((current) => ({ ...current, provider: event.target.value }))
+              setDraft((current) => ({
+                ...current,
+                provider: event.target.value,
+              }))
             }
             placeholder="openai"
           />
@@ -97,21 +102,29 @@ export function SettingsForm({ initialSettings, onSave }: SettingsFormProps) {
             type="password"
             value={draft.apiKey}
             onChange={(event) =>
-              setDraft((current) => ({ ...current, apiKey: event.target.value }))
+              setDraft((current) => ({
+                ...current,
+                apiKey: event.target.value,
+              }))
             }
             placeholder="sk-..."
           />
         </label>
 
         <fieldset className="flex flex-col gap-2 text-sm">
-          <legend className="text-muted-foreground">Cluster test open mode</legend>
+          <legend className="text-muted-foreground">
+            Cluster test open mode
+          </legend>
           <label className="flex items-center gap-2">
             <input
               type="radio"
               name="cluster-open-mode"
               checked={draft.clusterOpenMode === "dialog"}
               onChange={() =>
-                setDraft((current) => ({ ...current, clusterOpenMode: "dialog" }))
+                setDraft((current) => ({
+                  ...current,
+                  clusterOpenMode: "dialog",
+                }))
               }
             />
             <span>Open with dialog</span>

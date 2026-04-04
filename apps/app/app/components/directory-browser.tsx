@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react"
-import { ChevronDownIcon, ChevronRightIcon, LoaderCircleIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  LoaderCircleIcon,
+} from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
@@ -24,10 +28,12 @@ export function DirectoryBrowser({
   const [roots, setRoots] = useState<DirectoryNode[]>([])
   const [showHidden, setShowHidden] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [childrenByPath, setChildrenByPath] = useState<Record<string, DirectoryNode[]>>(
-    {},
+  const [childrenByPath, setChildrenByPath] = useState<
+    Record<string, DirectoryNode[]>
+  >({})
+  const [loadingByPath, setLoadingByPath] = useState<Record<string, boolean>>(
+    {}
   )
-  const [loadingByPath, setLoadingByPath] = useState<Record<string, boolean>>({})
   const [loadingRoots, setLoadingRoots] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
   const [creating, setCreating] = useState(false)
@@ -68,7 +74,10 @@ export function DirectoryBrowser({
       return
     }
 
-    const hasLoadedChildren = Object.prototype.hasOwnProperty.call(childrenByPath, path)
+    const hasLoadedChildren = Object.prototype.hasOwnProperty.call(
+      childrenByPath,
+      path
+    )
     if (hasLoadedChildren === false) {
       await loadChildren(path)
     }
@@ -119,7 +128,9 @@ export function DirectoryBrowser({
           </button>
           <button
             className={`flex-1 truncate rounded px-2 py-1 text-left text-sm ${
-              isSelected ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              isSelected
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted"
             }`}
             onClick={() => onSelect(node.path)}
             style={{ paddingLeft: `${level * 12 + 8}px` }}
@@ -141,7 +152,9 @@ export function DirectoryBrowser({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Browse directories (lazy loading)</p>
+        <p className="text-sm text-muted-foreground">
+          Browse directories (lazy loading)
+        </p>
         <Button
           variant="ghost"
           onClick={() => setShowHidden((current) => current === false)}
@@ -149,10 +162,14 @@ export function DirectoryBrowser({
           {showHidden ? "Hide Hidden" : "Show Hidden"}
         </Button>
       </div>
-      <ScrollArea className="h-72 rounded-md border border-border p-2">
-        {loadingRoots && <p className="text-sm text-muted-foreground">Loading roots...</p>}
+      <ScrollArea className="app-section-card h-72 p-2">
+        {loadingRoots && (
+          <p className="text-sm text-muted-foreground">Loading roots...</p>
+        )}
         {!loadingRoots && roots.length === 0 && (
-          <p className="text-sm text-muted-foreground">No root directories available.</p>
+          <p className="text-sm text-muted-foreground">
+            No root directories available.
+          </p>
         )}
         {!loadingRoots && roots.length > 0 && (
           <div className="flex flex-col gap-1">
@@ -162,12 +179,17 @@ export function DirectoryBrowser({
       </ScrollArea>
       <div className="flex gap-2">
         <Input
-          placeholder={selectedPath ? "New folder name" : "Select directory first"}
+          placeholder={
+            selectedPath ? "New folder name" : "Select directory first"
+          }
           value={newFolderName}
           onChange={(event) => setNewFolderName(event.target.value)}
           disabled={!selectedPath || creating}
         />
-        <Button onClick={() => void createFolder()} disabled={!selectedPath || !newFolderName.trim() || creating}>
+        <Button
+          onClick={() => void createFolder()}
+          disabled={!selectedPath || !newFolderName.trim() || creating}
+        >
           New Folder
         </Button>
       </div>

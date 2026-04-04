@@ -15,3 +15,8 @@ Date: 2026-04-04
 ## Memory update
 - `DESIGN.md` is now the required reference before any future `apps/app` UI development.
 - Button size policy: default size first, change only when explicitly required.
+
+## Follow-up update (2026-04-05)
+- Removed dual Settings entry patterns; sidebar now exposes a single Settings page entry.
+- Reworked Settings page visual structure to page canvas + sidebar + section dividers.
+- Added a new `DESIGN.md` anti-pattern: avoid wrapping large settings/dashboard pages in one giant outer card.

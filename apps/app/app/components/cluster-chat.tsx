@@ -11,6 +11,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Textarea } from "@workspace/ui/components/textarea"
+import { cn } from "@workspace/ui/lib/utils"
 import { apiStream } from "../lib/api-client"
 
 type ClusterMessage = {
@@ -37,7 +38,11 @@ type ClusterChatProps = {
 
 const nextId = () => Math.random().toString(36).slice(2)
 
-function createThread(provider: string, model: string, index: number): ClusterThread {
+function createThread(
+  provider: string,
+  model: string,
+  index: number
+): ClusterThread {
   return {
     id: nextId(),
     title: `Cluster ${index}`,
@@ -59,9 +64,16 @@ export function ClusterChat({
     createThread(defaultProvider, defaultModel, 1),
   ])
 
-  const running = useMemo(() => threads.some((thread) => thread.running), [threads])
+  const running = useMemo(
+    () => threads.some((thread) => thread.running),
+    [threads]
+  )
 
-  async function streamThread(thread: ClusterThread, message: string, assistantId: string) {
+  async function streamThread(
+    thread: ClusterThread,
+    message: string,
+    assistantId: string
+  ) {
     const response = await apiStream(
       "/chat/stream",
       {
@@ -70,7 +82,7 @@ export function ClusterChat({
         provider: thread.provider,
         model: thread.model,
       },
-      { apiKey },
+      { apiKey }
     )
 
     if (!response.ok || !response.body) {
@@ -115,10 +127,10 @@ export function ClusterChat({
                       ...messageItem,
                       content: messageItem.content + payload.chunk,
                     }
-                  : messageItem,
+                  : messageItem
               ),
             }
-          }),
+          })
         )
       }
     }
@@ -148,8 +160,8 @@ export function ClusterChat({
                   { id: assistantId, role: "assistant", content: "" },
                 ],
               }
-            : candidate,
-        ),
+            : candidate
+        )
       )
 
       return streamThread(thread, userMessage, assistantId)
@@ -165,11 +177,11 @@ export function ClusterChat({
                             ...messageItem,
                             content: `Error: ${String(cause)}`,
                           }
-                        : messageItem,
+                        : messageItem
                     ),
                   }
-                : candidate,
-            ),
+                : candidate
+            )
           )
         })
         .finally(() => {
@@ -180,8 +192,8 @@ export function ClusterChat({
                     ...candidate,
                     running: false,
                   }
-                : candidate,
-            ),
+                : candidate
+            )
           )
         })
     })
@@ -192,7 +204,7 @@ export function ClusterChat({
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-lg">Cluster Test</h2>
+        <h2 className="app-chat-title font-heading text-lg">Cluster Test</h2>
         <Button
           variant="outline"
           onClick={() =>
@@ -225,8 +237,8 @@ export function ClusterChat({
                       current.map((candidate) =>
                         candidate.id === thread.id
                           ? { ...candidate, provider: event.target.value }
-                          : candidate,
-                      ),
+                          : candidate
+                      )
                     )
                   }
                   placeholder="Provider"
@@ -238,8 +250,8 @@ export function ClusterChat({
                       current.map((candidate) =>
                         candidate.id === thread.id
                           ? { ...candidate, model: event.target.value }
-                          : candidate,
-                      ),
+                          : candidate
+                      )
                     )
                   }
                   placeholder="Model"
@@ -248,16 +260,19 @@ export function ClusterChat({
               <ScrollArea className="h-[40svh] rounded-md border border-border px-3 py-2">
                 <div className="flex flex-col gap-2 pb-4">
                   {thread.messages.length === 0 && (
-                    <p className="text-sm text-muted-foreground">No messages yet.</p>
+                    <p className="text-sm text-muted-foreground">
+                      No messages yet.
+                    </p>
                   )}
                   {thread.messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`max-w-[90%] rounded-md px-3 py-2 text-sm ${
+                      className={cn(
+                        "max-w-[90%] rounded-md px-3 py-2 text-sm",
                         message.role === "user"
                           ? "ml-auto bg-primary text-primary-foreground"
                           : "bg-muted text-foreground"
-                      }`}
+                      )}
                     >
                       {message.content || (thread.running ? "..." : "")}
                     </div>
@@ -269,16 +284,19 @@ export function ClusterChat({
         ))}
       </div>
 
-      <div className="sticky bottom-0 rounded-xl border border-border bg-background p-3 shadow-sm">
+      <div className="app-composer app-composer--dark sticky bottom-0">
         <div className="flex flex-col gap-2">
           <Textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Send one message to all clusters"
-            className="min-h-24"
+            className="app-dark-textarea min-h-24"
           />
           <div className="flex justify-end">
-            <Button onClick={() => send().catch(() => undefined)} disabled={running}>
+            <Button
+              onClick={() => send().catch(() => undefined)}
+              disabled={running}
+            >
               <SendIcon data-icon="inline-start" />
               Send to All
             </Button>

@@ -1,0 +1,251 @@
+.app-shell {
+  min-height: 100svh;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.app-page {
+  width: min(1320px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.app-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.app-page-title {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.app-page-subtitle {
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+.settings-page {
+  min-height: 100svh;
+  padding: 24px;
+}
+
+.settings-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.settings-state-line {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.settings-item {
+  padding: 20px 0;
+}
+
+.settings-item + .settings-item {
+  border-top: 1px solid var(--border);
+}
+
+.settings-item-title {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.settings-item-description {
+  margin-top: 4px;
+  margin-bottom: 14px;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+}
+
+.settings-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-radio-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.app-section-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px #f0eee6,
+    0 4px 24px rgb(0 0 0 / 5%);
+}
+
+.app-section-card--dark {
+  background: #30302e;
+  border-color: #30302e;
+  color: #faf9f5;
+}
+
+.app-section-card--dark .app-page-subtitle {
+  color: #b0aea5;
+}
+
+.app-chat-overline {
+  color: #b0aea5;
+  font-size: 0.75rem;
+  letter-spacing: 0.12px;
+}
+
+.app-chat-title {
+  color: #faf9f5;
+}
+
+.app-chat-subtitle {
+  color: #b0aea5;
+}
+
+.app-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.app-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-status-line {
+  margin-top: 12px;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.app-main-grid {
+  display: grid;
+  min-height: 100svh;
+  grid-template-columns: 1fr;
+}
+
+.app-panel {
+  min-height: 0;
+  padding: 24px;
+}
+
+.app-panel + .app-panel {
+  border-top: 1px solid var(--border);
+}
+
+.app-chat-log {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+
+.app-chat-log--dark {
+  border-color: #3d3d3a;
+  background: #141413;
+}
+
+.app-chat-empty {
+  color: #b0aea5;
+}
+
+.app-chat-assistant {
+  background: #3d3d3a;
+  color: #faf9f5;
+}
+
+.app-composer {
+  margin-top: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 12px;
+  box-shadow: 0 0 0 1px #f0eee6;
+}
+
+.app-composer--dark {
+  border-color: #3d3d3a;
+  background: #30302e;
+  box-shadow: 0 0 0 1px #3d3d3a;
+}
+
+.app-dark-textarea {
+  border-color: #3d3d3a;
+  background: #141413;
+  color: #faf9f5;
+}
+
+.app-dark-textarea::placeholder {
+  color: #87867f;
+}
+
+.app-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: #faf9f5;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
+@media (min-width: 1024px) {
+  .app-main-grid {
+    grid-template-columns: minmax(0, 1fr) 30rem;
+  }
+
+  .app-panel + .app-panel {
+    border-top: 0;
+    border-left: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 1023px) {
+  .app-page {
+    padding: 16px;
+  }
+
+  .settings-page {
+    padding: 16px;
+  }
+
+  .app-panel {
+    padding: 16px;
+  }
+
+  .app-page-title {
+    font-size: 1.6rem;
+  }
+}

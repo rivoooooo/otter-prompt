@@ -1,6 +1,4 @@
-import { Link } from "react-router"
 import { useEffect, useState } from "react"
-import { Button } from "@workspace/ui/components/button"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ClusterChat } from "../components/cluster-chat"
 import { getAppSettings, type AppSettings } from "../lib/app-settings"
@@ -25,20 +23,18 @@ export default function ClusterPage() {
   }
 
   return (
-    <main className="flex min-h-svh flex-col bg-background p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
+    <main className="settings-page">
+      <div className="settings-page-header">
         <div>
-          <h1 className="font-heading text-2xl">Cluster Test</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="app-page-subtitle">Parallel Comparison</p>
+          <h1 className="app-page-title">Cluster Test</h1>
+          <p className="app-page-subtitle">
             Broadcast one message to all conversation clusters.
           </p>
         </div>
-        <Button variant="outline" render={<Link to="/" />}>
-          Back to App
-        </Button>
       </div>
 
-      <div className="mb-3 rounded-xl border border-border p-3">
+      <div className="app-section-card mb-4 p-4">
         <p className="mb-2 text-sm text-muted-foreground">System prompt</p>
         <Textarea
           value={systemPrompt}
@@ -48,7 +44,7 @@ export default function ClusterPage() {
         />
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="app-section-card app-section-card--dark min-h-0 flex-1 p-4 md:p-6">
         <ClusterChat
           systemPrompt={systemPrompt}
           apiKey={settings.apiKey}

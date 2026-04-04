@@ -9,6 +9,7 @@ import {
 
 import type { Route } from "./+types/root"
 import "@workspace/ui/globals.css"
+import "./app-theme.css"
 import { TooltipProvider } from "@workspace/ui/components/tooltip"
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body>
+      <body className="app-shell">
         <TooltipProvider>{children}</TooltipProvider>
         <ScrollRestoration />
         <Scripts />
