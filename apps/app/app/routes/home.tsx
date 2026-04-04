@@ -62,7 +62,7 @@ type FileNameParts = {
   extension: string
 }
 
-const SYSTEM_PROMPT_KEY = "otter.systemPrompt"
+const DEFAULT_SYSTEM_PROMPT = ""
 const nextId = () => Math.random().toString(36).slice(2)
 
 function splitFileName(path: string): FileNameParts {
@@ -160,7 +160,6 @@ export default function Home() {
     deleteWorkspacePath,
   } = useOutletContext<WorkspaceShellContext>()
 
-  const [systemPrompt, setSystemPrompt] = useState("")
   const [chatInput, setChatInput] = useState("")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [settings, setSettings] = useState<AppSettings>(getAppSettings())
@@ -171,10 +170,10 @@ export default function Home() {
   const [fileExtension, setFileExtension] = useState("")
   const [isDesktopLayout, setIsDesktopLayout] = useState(false)
   const [renameRunning, setRenameRunning] = useState(false)
+  const systemPrompt = DEFAULT_SYSTEM_PROMPT
 
   useEffect(() => {
     setSettings(getAppSettings())
-    setSystemPrompt(window.localStorage.getItem(SYSTEM_PROMPT_KEY) || "")
   }, [])
 
   useEffect(() => {
@@ -208,7 +207,6 @@ export default function Home() {
   )
 
   async function saveWorkspace() {
-    window.localStorage.setItem(SYSTEM_PROMPT_KEY, systemPrompt)
     await saveActiveFile()
   }
 
@@ -472,9 +470,14 @@ export default function Home() {
 
         <ResizablePanel defaultSize={isDesktopLayout ? 42 : 40} minSize={25}>
           <section className="app-panel app-module-panel">
-            <div className="app-module-viewport">
+            <div
+              className={cn(
+                "app-module-viewport",
+                rightPanelView === "chat" && "app-module-viewport--chat"
+              )}
+            >
               {rightPanelView === "chat" ? (
-                <div className="app-module-view">
+                <div className="app-module-view app-chat-shell">
                   <div className="app-toolbar">
                     <div>
                       <p className="text-xs tracking-[0.12px] text-muted-foreground">
@@ -496,9 +499,6 @@ export default function Home() {
                           <ChevronDownIcon data-icon="inline-end" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => setSystemPrompt("")}>
-                            Clear Prompt
-                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setChatMessages([])}>
                             Clear Conversation
                           </DropdownMenuItem>
@@ -518,57 +518,22 @@ export default function Home() {
 
                   <Separator />
 
-                  <div className="app-debug-section">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="app-chat-settings-label">System Prompt</p>
-                        <p className="text-sm text-muted-foreground">
-                          Applied to the single chat and cluster runs.
-                        </p>
-                      </div>
-                      <div className="app-debug-meta">
-                        <span className="app-pill">
-                          Provider: {effectiveProvider.providerId}
-                        </span>
-                        <span className="app-pill">
-                          Model: {effectiveProvider.defaultModel}
-                        </span>
-                      </div>
-                    </div>
-                    <Textarea
-                      value={systemPrompt}
-                      onChange={(event) => setSystemPrompt(event.target.value)}
-                      placeholder="Write system prompt here."
-                      className="min-h-32"
-                    />
-                  </div>
-
-                  <Separator />
-
-                  <div className="app-debug-section app-debug-section--body">
-                    <div>
-                      <p className="app-chat-settings-label">Transcript</p>
-                      <p className="text-sm text-muted-foreground">
-                        Inspect the single-run response before broadcasting to
-                        clusters.
-                      </p>
-                    </div>
-
-                    <ScrollArea className="app-chat-log min-h-0 flex-1">
-                      <div className="flex flex-col gap-2 pr-4 pb-4">
+                  <div className="app-chat-stage">
+                    <ScrollArea className="app-chat-log">
+                      <div className="app-chat-log-inner">
                         {chatMessages.length === 0 && (
-                          <p className="text-sm text-muted-foreground">
-                            Start a chat to test your prompt.
+                          <p className="app-chat-empty-state">
+                            Start a conversation to test the model.
                           </p>
                         )}
                         {chatMessages.map((message) => (
                           <div
                             key={message.id}
                             className={cn(
-                              "max-w-[92%] rounded-2xl px-3 py-2 text-sm",
+                              "app-chat-bubble",
                               message.role === "user"
-                                ? "ml-auto bg-primary text-primary-foreground"
-                                : "border border-border bg-background text-foreground"
+                                ? "app-chat-bubble--user"
+                                : "app-chat-bubble--assistant"
                             )}
                           >
                             {message.content || (chatRunning ? "..." : "")}
@@ -577,15 +542,15 @@ export default function Home() {
                       </div>
                     </ScrollArea>
 
-                    <div className="app-composer">
-                      <div className="flex flex-col gap-2">
+                    <div className="app-chat-composer-wrap">
+                      <div className="app-chat-composer">
                         <Textarea
                           value={chatInput}
                           onChange={(event) => setChatInput(event.target.value)}
                           placeholder="Send message for single chat test"
-                          className="min-h-24"
+                          className="min-h-24 resize-none rounded-none border-0 bg-transparent p-0 text-[0.98rem] leading-[1.6] text-[#141413] shadow-none outline-none placeholder:text-[#87867f] focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                         />
-                        <div className="flex justify-end">
+                        <div className="app-chat-composer-actions">
                           <Button
                             onClick={() =>
                               runChat().catch((cause) =>
