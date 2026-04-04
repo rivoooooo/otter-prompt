@@ -699,9 +699,7 @@
 }
 
 .app-main-grid {
-  display: grid;
   min-height: 100svh;
-  grid-template-columns: 1fr;
 }
 
 .app-panel {
@@ -716,7 +714,11 @@
   gap: 12px;
   background:
     radial-gradient(circle at top left, rgb(201 100 66 / 8%), transparent 30%),
-    linear-gradient(180deg, rgb(250 249 245 / 96%) 0%, rgb(245 244 237 / 82%) 100%);
+    linear-gradient(
+      180deg,
+      rgb(250 249 245 / 96%) 0%,
+      rgb(245 244 237 / 82%) 100%
+    );
 }
 
 .app-editor-toolbar {
@@ -839,6 +841,38 @@
   margin-bottom: 12px;
 }
 
+.app-debug-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at top right, rgb(201 100 66 / 5%), transparent 30%),
+    linear-gradient(
+      180deg,
+      rgb(250 249 245 / 94%) 0%,
+      rgb(245 244 237 / 86%) 100%
+    );
+}
+
+.app-debug-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-block: 18px;
+}
+
+.app-debug-section--body {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.app-debug-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .app-chat-settings-label {
   margin-bottom: 8px;
   color: var(--muted-foreground);
@@ -851,14 +885,15 @@
   border-top: 1px solid var(--border);
 }
 
+.app-workspace-handle {
+  background: transparent;
+}
+
 .app-chat-log {
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  padding: 16px;
+  padding: 0;
 }
 
 .app-chat-log--dark {
-  border-color: #3d3d3a;
   background: #141413;
 }
 
@@ -872,18 +907,17 @@
 }
 
 .app-composer {
-  margin-top: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  padding: 12px;
-  box-shadow: 0 0 0 1px #f0eee6;
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  padding: 16px 0 0;
+  box-shadow: none;
 }
 
 .app-composer--dark {
   border-color: #3d3d3a;
-  background: #30302e;
-  box-shadow: 0 0 0 1px #3d3d3a;
+  background: transparent;
+  box-shadow: none;
 }
 
 .app-dark-textarea {
@@ -908,14 +942,21 @@
   color: var(--muted-foreground);
 }
 
-@media (min-width: 1024px) {
-  .app-main-grid {
-    grid-template-columns: minmax(0, 1fr) 30rem;
-  }
+.app-cluster-stage {
+  min-height: 0;
+  flex: 1 1 auto;
+  background: #141413;
+  padding: 20px 16px;
+}
 
+@media (min-width: 1024px) {
   .app-panel + .app-panel {
     border-top: 0;
     border-left: 1px solid var(--border);
+  }
+
+  .app-cluster-stage {
+    padding: 20px 24px;
   }
 
   .settings-center-layout {
@@ -989,6 +1030,10 @@
 
   .app-panel {
     padding: 16px;
+  }
+
+  .app-debug-meta {
+    justify-content: flex-start;
   }
 
   .app-editor-title-input {

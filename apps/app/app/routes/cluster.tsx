@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Separator } from "@workspace/ui/components/separator"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ClusterChat } from "../components/cluster-chat"
 import {
@@ -40,8 +41,13 @@ export default function ClusterPage() {
         </div>
       </div>
 
-      <div className="app-section-card mb-4 p-4">
-        <p className="mb-2 text-sm text-muted-foreground">System prompt</p>
+      <div className="mb-4 flex flex-col gap-3 border-b border-border pb-4">
+        <div>
+          <p className="mb-2 text-sm text-muted-foreground">System prompt</p>
+          <p className="text-sm text-muted-foreground">
+            This prompt is injected into every cluster request.
+          </p>
+        </div>
         <Textarea
           value={systemPrompt}
           onChange={(event) => setSystemPrompt(event.target.value)}
@@ -50,7 +56,9 @@ export default function ClusterPage() {
         />
       </div>
 
-      <div className="app-section-card app-section-card--dark min-h-0 flex-1 p-4 md:p-6">
+      <Separator />
+
+      <div className="app-cluster-stage min-h-0 flex-1">
         <ClusterChat
           systemPrompt={systemPrompt}
           apiKey={effectiveProvider.apiKey}
