@@ -25,7 +25,11 @@ import { Textarea } from "@workspace/ui/components/textarea"
 import { cn } from "@workspace/ui/lib/utils"
 import { ClusterChat } from "../components/cluster-chat"
 import { apiStream } from "../lib/api-client"
-import { getAppSettings, type AppSettings } from "../lib/app-settings"
+import {
+  getAppSettings,
+  getEffectiveProviderConfig,
+  type AppSettings,
+} from "../lib/app-settings"
 import type { WorkspaceShellContext } from "./workspace"
 
 type ChatMessage = {
@@ -64,6 +68,8 @@ export default function Home() {
     setSystemPrompt(window.localStorage.getItem(SYSTEM_PROMPT_KEY) || "")
   }, [])
 
+  const effectiveProvider = getEffectiveProviderConfig(settings)
+
   async function saveWorkspace() {
     window.localStorage.setItem(SYSTEM_PROMPT_KEY, systemPrompt)
     await saveActiveFile()
@@ -91,10 +97,10 @@ export default function Home() {
         {
           message: userMessage,
           systemPrompt,
-          provider: settings.provider,
-          model: settings.defaultModel,
+          provider: effectiveProvider.providerId,
+          model: effectiveProvider.defaultModel,
         },
-        { apiKey: settings.apiKey }
+        { apiKey: effectiveProvider.apiKey }
       )
 
       if (!response.ok || !response.body) {
@@ -148,7 +154,7 @@ export default function Home() {
   }
 
   function openClusterTest() {
-    if (settings.clusterOpenMode === "page") {
+    if (settings.general.clusterOpenMode === "page") {
       navigate("/cluster")
       return
     }
@@ -360,9 +366,9 @@ export default function Home() {
           <div className="h-[80svh]">
             <ClusterChat
               systemPrompt={systemPrompt}
-              apiKey={settings.apiKey}
-              defaultProvider={settings.provider}
-              defaultModel={settings.defaultModel}
+              apiKey={effectiveProvider.apiKey}
+              defaultProvider={effectiveProvider.providerId}
+              defaultModel={effectiveProvider.defaultModel}
             />
           </div>
         </DialogContent>

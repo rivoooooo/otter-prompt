@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ClusterChat } from "../components/cluster-chat"
-import { getAppSettings, type AppSettings } from "../lib/app-settings"
+import {
+  getAppSettings,
+  getEffectiveProviderConfig,
+  type AppSettings,
+} from "../lib/app-settings"
 
 const SYSTEM_PROMPT_KEY = "otter.systemPrompt"
 
@@ -21,6 +25,8 @@ export default function ClusterPage() {
   if (!settings) {
     return null
   }
+
+  const effectiveProvider = getEffectiveProviderConfig(settings)
 
   return (
     <main className="settings-page">
@@ -47,9 +53,9 @@ export default function ClusterPage() {
       <div className="app-section-card app-section-card--dark min-h-0 flex-1 p-4 md:p-6">
         <ClusterChat
           systemPrompt={systemPrompt}
-          apiKey={settings.apiKey}
-          defaultProvider={settings.provider}
-          defaultModel={settings.defaultModel}
+          apiKey={effectiveProvider.apiKey}
+          defaultProvider={effectiveProvider.providerId}
+          defaultModel={effectiveProvider.defaultModel}
         />
       </div>
     </main>

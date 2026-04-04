@@ -220,7 +220,8 @@ export default function WorkspaceRoute() {
       body: JSON.stringify({
         localPath: newProjectPath,
         name: newProjectPath.split("/").filter(Boolean).pop() || "Project",
-        allowDuplicateLocalPath: settings.allowDuplicateLocalPathAsNewProject,
+        allowDuplicateLocalPath:
+          settings.general.allowDuplicateLocalPathAsNewProject,
       }),
     })
 
