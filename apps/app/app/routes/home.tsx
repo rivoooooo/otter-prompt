@@ -1,7 +1,16 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react"
 import { useNavigate, useOutletContext } from "react-router"
 import {
   ChevronDownIcon,
+  CopyIcon,
+  EllipsisIcon,
   FolderOpenIcon,
   MessageSquareIcon,
   SaveIcon,
@@ -18,11 +27,9 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
-import { Input } from "@workspace/ui/components/input"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -155,7 +162,6 @@ export default function Home() {
     refreshTree,
     saveActiveFile,
     renameActiveFile,
-    deleteActiveFile,
     renameWorkspacePath,
     deleteWorkspacePath,
   } = useOutletContext<WorkspaceShellContext>()
@@ -169,7 +175,10 @@ export default function Home() {
   const [fileBaseName, setFileBaseName] = useState("")
   const [fileExtension, setFileExtension] = useState("")
   const [isDesktopLayout, setIsDesktopLayout] = useState(false)
+  const [isEditingFileName, setIsEditingFileName] = useState(false)
   const [renameRunning, setRenameRunning] = useState(false)
+  const fileNameEditorRef = useRef<HTMLDivElement | null>(null)
+  const fileBaseNameInputRef = useRef<HTMLInputElement | null>(null)
   const systemPrompt = DEFAULT_SYSTEM_PROMPT
 
   useEffect(() => {
@@ -190,7 +199,17 @@ export default function Home() {
     const nextParts = splitFileName(activeFile)
     setFileBaseName(nextParts.baseName)
     setFileExtension(nextParts.extension)
+    setIsEditingFileName(false)
   }, [activeFile])
+
+  useEffect(() => {
+    if (!isEditingFileName) {
+      return
+    }
+
+    fileBaseNameInputRef.current?.focus()
+    fileBaseNameInputRef.current?.select()
+  }, [isEditingFileName])
 
   const effectiveProvider = getEffectiveProviderConfig(settings)
   const contentStats = useMemo(
@@ -205,20 +224,48 @@ export default function Home() {
     }),
     [fileContent, settings.general.tokenCounterPreset]
   )
+  const fileExtensionText = fileExtension.startsWith(".")
+    ? fileExtension.slice(1)
+    : fileExtension
 
   async function saveWorkspace() {
     await saveActiveFile()
   }
 
+  async function copyActiveFilePath() {
+    if (!activeFile) {
+      return
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(activeFile)
+        return
+      }
+
+      const input = document.createElement("input")
+      input.value = activeFile
+      input.setAttribute("readonly", "")
+      input.style.position = "absolute"
+      input.style.left = "-9999px"
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand("copy")
+      document.body.removeChild(input)
+    } catch (cause) {
+      setError(String(cause))
+    }
+  }
+
   async function commitFileRename() {
     if (!hasActiveFile || renameRunning) {
-      return
+      return false
     }
 
     const nextBaseName = fileBaseName.trim()
     if (!nextBaseName) {
       setError("file name is required")
-      return
+      return false
     }
 
     const normalizedExtension = normalizeExtension(fileExtension)
@@ -232,7 +279,7 @@ export default function Home() {
     setFileExtension(normalizedExtension)
 
     if (nextPath === activeFile) {
-      return
+      return true
     }
 
     setRenameRunning(true)
@@ -242,17 +289,38 @@ export default function Home() {
       const nextParts = splitFileName(renamedPath)
       setFileBaseName(nextParts.baseName)
       setFileExtension(nextParts.extension)
+      return true
     } catch (cause) {
       setError(String(cause))
+      return false
     } finally {
       setRenameRunning(false)
     }
   }
 
+  async function finishFileRename() {
+    const didCommit = await commitFileRename()
+    if (didCommit) {
+      setIsEditingFileName(false)
+    }
+  }
+
+  function handleFileNameBlur(event: FocusEvent<HTMLInputElement>) {
+    const nextFocused = event.relatedTarget
+    if (
+      nextFocused instanceof Node &&
+      fileNameEditorRef.current?.contains(nextFocused)
+    ) {
+      return
+    }
+
+    void finishFileRename()
+  }
+
   function handleRenameKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Enter") {
       event.preventDefault()
-      void commitFileRename()
+      void finishFileRename()
       return
     }
 
@@ -260,6 +328,7 @@ export default function Home() {
       const nextParts = splitFileName(activeFile)
       setFileBaseName(nextParts.baseName)
       setFileExtension(nextParts.extension)
+      setIsEditingFileName(false)
     }
   }
 
@@ -357,55 +426,90 @@ export default function Home() {
         className="min-h-dvh"
       >
         <ResizablePanel defaultSize={isDesktopLayout ? 58 : 60} minSize={35}>
-          <main className="flex min-h-0 flex-col gap-3 bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] p-4 dark:bg-none dark:bg-background lg:p-6">
-            <div className="mb-0 flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs tracking-[0.12px] text-muted-foreground">
-                  File
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2.5">
-                  <Input
-                    value={fileBaseName}
-                    onChange={(event) => setFileBaseName(event.target.value)}
-                    onBlur={() => void commitFileRename()}
-                    onKeyDown={handleRenameKeyDown}
-                    placeholder="untitled"
-                    disabled={!hasActiveFile || renameRunning}
-                    className="h-auto min-w-0 flex-[1_1_100%] border-0 bg-transparent p-0 font-heading text-[clamp(1.8rem,3vw,2.4rem)] leading-[1.05] shadow-none focus-visible:rounded-xl focus-visible:bg-background/80 focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:min-w-64 lg:flex-[1_1_20rem]"
-                  />
-                  <Input
-                    value={fileExtension}
-                    onChange={(event) => setFileExtension(event.target.value)}
-                    onBlur={() => void commitFileRename()}
-                    onKeyDown={handleRenameKeyDown}
-                    placeholder=".md"
-                    disabled={!hasActiveFile || renameRunning}
-                    className="h-auto w-full flex-none border-0 bg-transparent p-0 font-heading text-[clamp(1.35rem,2vw,1.65rem)] leading-[1.1] text-muted-foreground shadow-none focus-visible:rounded-xl focus-visible:bg-background/80 focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:w-[6.5rem]"
-                  />
-                </div>
-                <p className="mt-2.5 font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere] text-muted-foreground">
-                  {activeFile || "No file available in this project."}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="outline" />}>
-                    Actions
-                    <ChevronDownIcon data-icon="inline-end" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          deleteActiveFile().catch((cause) =>
-                            setError(String(cause))
+          <main className="flex min-h-dvh flex-col bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] dark:bg-none dark:bg-background">
+            <div className="flex flex-none items-start justify-between gap-3 overflow-hidden px-4 pt-4 pb-5 lg:px-6 lg:pt-6 lg:pb-6">
+              <div className="min-w-0 flex-1 overflow-hidden">
+                {isEditingFileName ? (
+                  <div
+                    ref={fileNameEditorRef}
+                    className="flex min-w-max items-baseline gap-x-0.5 overflow-hidden whitespace-nowrap"
+                  >
+                    <input
+                      ref={fileBaseNameInputRef}
+                      value={fileBaseName}
+                      onChange={(event) => setFileBaseName(event.target.value)}
+                      onBlur={handleFileNameBlur}
+                      onKeyDown={handleRenameKeyDown}
+                      placeholder=""
+                      disabled={!hasActiveFile || renameRunning}
+                      className="field-sizing-content h-auto min-w-0 flex-none border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    <div className="flex w-max min-w-0 shrink-0 flex-none items-baseline whitespace-nowrap">
+                      <span className="shrink-0 flex-none font-heading text-2xl leading-none text-muted-foreground">
+                        .
+                      </span>
+                      <input
+                        value={fileExtensionText}
+                        onChange={(event) =>
+                          setFileExtension(
+                            event.target.value
+                              ? `.${event.target.value.replace(/^\.+/, "")}`
+                              : ""
                           )
                         }
-                        disabled={!hasActiveFile}
-                      >
-                        Delete Active File
-                      </DropdownMenuItem>
-                    </DropdownMenuGroup>
+                        onBlur={handleFileNameBlur}
+                        onKeyDown={handleRenameKeyDown}
+                        placeholder="md"
+                        disabled={!hasActiveFile || renameRunning}
+                        className="field-sizing-content h-auto min-w-[2ch] w-max flex-none border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-muted-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex w-fit max-w-full min-w-0 items-baseline gap-x-0.5 overflow-hidden text-left"
+                    onClick={() => setIsEditingFileName(true)}
+                    disabled={!hasActiveFile || renameRunning}
+                    title={
+                      fileExtensionText
+                        ? `${fileBaseName || "untitled"}.${fileExtensionText}`
+                        : fileBaseName || "untitled"
+                    }
+                  >
+                    <span className="truncate font-heading text-2xl leading-none text-foreground">
+                      {fileBaseName || "untitled"}
+                    </span>
+                    {fileExtensionText ? (
+                      <span className="shrink-0 flex-none whitespace-nowrap font-heading text-2xl leading-none text-muted-foreground">
+                        .{fileExtensionText}
+                      </span>
+                    ) : null}
+                  </button>
+                )}
+              </div>
+              <div className="shrink-0 flex flex-wrap gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label="More actions"
+                        title="More actions"
+                      />
+                    }
+                  >
+                    <EllipsisIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onClick={() => void copyActiveFilePath()}
+                      disabled={!hasActiveFile}
+                    >
+                      <CopyIcon />
+                      Copy File Path
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 <Button
@@ -420,17 +524,17 @@ export default function Home() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-border/90 bg-transparent">
-              <div className="min-h-0 flex-1 px-0 pt-[18px]">
+              <div className="min-h-0 flex-1 px-4 pt-[18px] pb-5 lg:px-6">
                 <Textarea
                   value={fileContent}
                   onChange={(event) => setFileContent(event.target.value)}
                   placeholder="No file available in this project."
                   disabled={!hasActiveFile}
-                  className="h-full min-h-full resize-none border-0 bg-transparent px-0 pt-2 pb-5 font-mono text-[0.95rem] leading-[1.75] shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-full min-h-full resize-none border-0 bg-transparent px-0 py-0 font-mono text-[0.95rem] leading-[1.75] shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
 
-              <div className="relative flex-none border-t border-border/90 bg-background/85 px-0 pt-3 pb-[14px]">
+              <div className="sticky bottom-0 z-[1] flex-none border-t border-border/90 bg-background/85 px-4 pt-3 pb-[14px] backdrop-blur-sm lg:px-6">
                 <div className="scrollbar-thin mt-0 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
                   <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     {hasActiveFile
