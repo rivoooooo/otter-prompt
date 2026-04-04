@@ -1,4 +1,7 @@
 import { createServer } from "node:http"
+import { readFile } from "node:fs/promises"
+import { fileURLToPath } from "node:url"
+import { dirname, join, normalize } from "node:path"
 import { URL } from "node:url"
 import {
   createProject,
@@ -21,6 +24,73 @@ import { streamChat } from "./ai/ai-client.mjs"
 import { openInEditor } from "./editor.mjs"
 import { applySnapshot, buildSnapshot } from "./storage/project-snapshot.mjs"
 import { getCloudSyncStatus, pullFromCloud, pushToCloud } from "./sync-client.mjs"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const DEFAULT_APP_DIST = normalize(join(__dirname, "../../../apps/app/build/client"))
+
+const CONTENT_TYPE = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".ico": "image/x-icon",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+}
+
+function getExtname(pathname) {
+  const index = pathname.lastIndexOf(".")
+  return index >= 0 ? pathname.slice(index).toLowerCase() : ""
+}
+
+async function tryServeAppAsset(req, res, pathname) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return false
+  }
+
+  const appDist = process.env.OTTER_APP_DIST || DEFAULT_APP_DIST
+  const normalized = pathname === "/" ? "/index.html" : pathname
+  const safePath = normalize(normalized).replace(/^(\.\.[/\\])+/, "")
+  const candidate = join(appDist, safePath)
+
+  try {
+    const raw = await readFile(candidate)
+    const ext = getExtname(safePath)
+    res.writeHead(200, {
+      "Content-Type": CONTENT_TYPE[ext] || "application/octet-stream",
+      "Cache-Control": "no-cache",
+    })
+    res.end(req.method === "HEAD" ? undefined : raw)
+    return true
+  } catch {
+    // Continue to fallback
+  }
+
+  // SPA fallback for route-like paths.
+  if (!safePath.includes(".") || safePath.endsWith(".html")) {
+    try {
+      const indexHtml = await readFile(join(appDist, "index.html"))
+      res.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-cache",
+      })
+      res.end(req.method === "HEAD" ? undefined : indexHtml)
+      return true
+    } catch {
+      res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" })
+      res.end(
+        "Front-end not found. Build app first: pnpm --filter @otter-prompt/app build",
+      )
+      return true
+    }
+  }
+
+  return false
+}
 
 function json(res, status, body) {
   res.setHeader("Access-Control-Allow-Origin", "*")
@@ -262,6 +332,10 @@ export function createCoreServer() {
           getCloudSyncStatus(projectId),
         ])
         return json(res, 200, { local, cloud })
+      }
+
+      if (await tryServeAppAsset(req, res, url.pathname)) {
+        return
       }
 
       json(res, 404, { error: "not found" })

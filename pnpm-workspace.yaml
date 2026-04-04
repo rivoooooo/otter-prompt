@@ -3,6 +3,7 @@ packages:
   - packages/*
   - apps/desktop/frontend
 allowBuilds:
+  '@parcel/watcher': true
   esbuild: true
   msw: true
   sharp: true

@@ -22,6 +22,8 @@ coverage
 # Build Outputs
 build
 dist
+.output
+.nitro
 
 # React Router
 .react-router/
@@ -32,3 +34,4 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+.agents/

@@ -1,4 +1,8 @@
+import { Link } from "react-router"
 import { useEffect, useMemo, useState } from "react"
+import { Button } from "@workspace/ui/components/button"
+import { Input } from "@workspace/ui/components/input"
+import { apiRequest, apiStream } from "../lib/api-client"
 
 type Project = {
   id: string
@@ -18,26 +22,10 @@ type SyncStatus = {
   local?: {
     lastSyncedAt?: string | null
     conflicts?: Array<{ path: string; conflictFile: string }>
-    lastPulledRevision?: number
-    lastPushRevision?: number
   }
   cloud?: {
     revision?: number
-    updatedAt?: string | null
   }
-}
-
-const API_BASE =
-  (import.meta.env.VITE_OTTER_API_BASE as string | undefined) ||
-  "http://127.0.0.1:8787"
-
-async function requestJSON<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init)
-  if (!response.ok) {
-    throw new Error(await response.text())
-  }
-
-  return response.json() as Promise<T>
 }
 
 function FileTree({
@@ -95,7 +83,7 @@ export default function Home() {
   }, [apiKey])
 
   useEffect(() => {
-    requestJSON<{ projects: Project[] }>(`${API_BASE}/projects`)
+    apiRequest<{ projects: Project[] }>("/projects")
       .then((body) => {
         setProjects(body.projects)
         if (body.projects.length > 0) {
@@ -111,8 +99,8 @@ export default function Home() {
       return
     }
 
-    requestJSON<{ tree: TreeNode }>(
-      `${API_BASE}/tree?projectPath=${encodeURIComponent(activeProject.localPath)}`,
+    apiRequest<{ tree: TreeNode }>(
+      `/tree?projectPath=${encodeURIComponent(activeProject.localPath)}`,
     )
       .then((body) => setTree(body.tree))
       .catch((cause) => setError(String(cause)))
@@ -124,9 +112,7 @@ export default function Home() {
       return
     }
 
-    requestJSON<SyncStatus>(
-      `${API_BASE}/sync/status?projectId=${encodeURIComponent(activeProject.id)}`,
-    )
+    apiRequest<SyncStatus>(`/sync/status?projectId=${encodeURIComponent(activeProject.id)}`)
       .then((body) => setSyncStatus(body))
       .catch(() => setSyncStatus(null))
   }, [activeProject?.id])
@@ -137,8 +123,8 @@ export default function Home() {
     }
 
     setActiveFile(node.path)
-    const body = await requestJSON<{ content: string }>(
-      `${API_BASE}/file?path=${encodeURIComponent(node.path)}`,
+    const body = await apiRequest<{ content: string }>(
+      `/file?path=${encodeURIComponent(node.path)}`,
     )
     setContent(body.content)
   }
@@ -148,31 +134,22 @@ export default function Home() {
       return
     }
 
-    await requestJSON(`${API_BASE}/file`, {
+    await apiRequest(`/file`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: activeFile, content }),
     })
   }
 
   async function openInEditor(path: string) {
-    await requestJSON(`${API_BASE}/editor/open`, {
+    await apiRequest(`/editor/open`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path, command: editorCommand || undefined }),
     })
   }
 
   async function runChat() {
     setChatOutput("")
-    const response = await fetch(`${API_BASE}/chat/stream`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(apiKey ? { "x-otter-api-key": apiKey } : {}),
-      },
-      body: JSON.stringify({ message: chatInput }),
-    })
+    const response = await apiStream("/chat/stream", { message: chatInput }, { apiKey })
 
     if (!response.ok || !response.body) {
       throw new Error("failed to run chat stream")
@@ -209,9 +186,8 @@ export default function Home() {
       return
     }
 
-    const body = await requestJSON<{ project: Project }>(`${API_BASE}/projects`, {
+    const body = await apiRequest<{ project: Project }>(`/projects`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         localPath: newProjectPath,
         name: newProjectPath.split("/").filter(Boolean).pop() || "Project",
@@ -228,19 +204,13 @@ export default function Home() {
       return
     }
 
-    const body = await requestJSON<{
-      project: Project
-      sync: SyncStatus["local"]
-    }>(`${API_BASE}/sync/push`, {
+    const body = await apiRequest<{ project: Project; sync: SyncStatus["local"] }>(`/sync/push`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projectId: activeProject.id }),
     })
 
     setProjects((current) =>
-      current.map((project) =>
-        project.id === body.project.id ? body.project : project,
-      ),
+      current.map((project) => (project.id === body.project.id ? body.project : project)),
     )
     setSyncStatus((current) => ({ ...current, local: body.sync }))
   }
@@ -250,20 +220,13 @@ export default function Home() {
       return
     }
 
-    const body = await requestJSON<{
-      project: Project
-      sync: SyncStatus["local"]
-      conflicts: Array<{ path: string; conflictFile: string }>
-    }>(`${API_BASE}/sync/pull`, {
+    const body = await apiRequest<{ project: Project; sync: SyncStatus["local"] }>(`/sync/pull`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ projectId: activeProject.id }),
     })
 
     setProjects((current) =>
-      current.map((project) =>
-        project.id === body.project.id ? body.project : project,
-      ),
+      current.map((project) => (project.id === body.project.id ? body.project : project)),
     )
     setSyncStatus((current) => ({ ...current, local: body.sync }))
   }
@@ -271,20 +234,22 @@ export default function Home() {
   return (
     <div className="grid min-h-svh grid-cols-12 bg-zinc-50 text-zinc-900">
       <aside className="col-span-3 border-r border-zinc-200 bg-white p-3">
-        <h2 className="mb-2 text-sm font-semibold">Projects</h2>
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Projects</h2>
+          <Button size="xs" variant="outline" render={<Link to="/settings" />}>
+            Settings
+          </Button>
+        </div>
         <div className="mb-3 flex gap-1">
-          <input
-            className="w-full rounded border border-zinc-300 px-2 py-1 text-xs"
+          <Input
+            className="h-8 text-xs"
             placeholder="/absolute/path/to/project"
             value={newProjectPath}
             onChange={(event) => setNewProjectPath(event.target.value)}
           />
-          <button
-            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white"
-            onClick={() => addProject().catch((cause) => setError(String(cause)))}
-          >
+          <Button size="xs" onClick={() => addProject().catch((cause) => setError(String(cause)))}>
             Add
-          </button>
+          </Button>
         </div>
         <div className="space-y-1">
           {projects.map((project) => (
@@ -308,54 +273,42 @@ export default function Home() {
 
       <main className="col-span-6 flex flex-col border-r border-zinc-200 bg-white p-3">
         <div className="mb-2 flex items-center gap-2 text-xs">
-          <input
-            className="w-56 rounded border border-zinc-300 px-2 py-1"
+          <Input
+            className="h-8 w-56"
             placeholder="API key (browser only)"
             type="password"
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
           />
-          <button
-            className="rounded bg-zinc-900 px-2 py-1 text-white disabled:bg-zinc-300"
-            onClick={() => syncPush().catch((cause) => setError(String(cause)))}
-            disabled={!activeProject}
-          >
+          <Button size="xs" onClick={() => syncPush().catch((cause) => setError(String(cause)))}>
             Push
-          </button>
-          <button
-            className="rounded bg-zinc-900 px-2 py-1 text-white disabled:bg-zinc-300"
-            onClick={() => syncPull().catch((cause) => setError(String(cause)))}
-            disabled={!activeProject}
-          >
+          </Button>
+          <Button size="xs" onClick={() => syncPull().catch((cause) => setError(String(cause)))}>
             Pull
-          </button>
-          <input
-            className="w-64 rounded border border-zinc-300 px-2 py-1"
-            placeholder="Custom editor command (optional)"
+          </Button>
+          <Input
+            className="h-8 w-64"
+            placeholder="Custom editor command"
             value={editorCommand}
             onChange={(event) => setEditorCommand(event.target.value)}
           />
-          <button
-            className="rounded bg-zinc-900 px-2 py-1 text-white disabled:bg-zinc-300"
+          <Button
+            size="xs"
+            variant="outline"
             onClick={() => openInEditor(activeFile || activeProject?.localPath || "")}
             disabled={!activeFile && !activeProject?.localPath}
           >
             Open External
-          </button>
-          <button
-            className="rounded bg-zinc-900 px-2 py-1 text-white disabled:bg-zinc-300"
-            onClick={saveFile}
-            disabled={!canSave}
-          >
+          </Button>
+          <Button size="xs" onClick={saveFile} disabled={!canSave}>
             Save
-          </button>
+          </Button>
         </div>
 
         <p className="mb-2 truncate text-xs text-zinc-500">{activeFile || "No file selected"}</p>
         <p className="mb-2 truncate text-[11px] text-zinc-500">
-          Last sync: {syncStatus?.local?.lastSyncedAt || "never"} | Cloud rev:{" "}
-          {syncStatus?.cloud?.revision ?? 0} | Conflicts:{" "}
-          {syncStatus?.local?.conflicts?.length || 0}
+          Last sync: {syncStatus?.local?.lastSyncedAt || "never"} | Cloud rev: {syncStatus?.cloud?.revision ?? 0} |
+          Conflicts: {syncStatus?.local?.conflicts?.length || 0}
         </p>
         <textarea
           className="h-full w-full resize-none rounded border border-zinc-200 p-3 font-mono text-sm"
@@ -373,21 +326,16 @@ export default function Home() {
           value={chatInput}
           onChange={(event) => setChatInput(event.target.value)}
         />
-        <button
-          className="mt-2 rounded bg-zinc-900 px-2 py-1 text-sm text-white"
-          onClick={() => runChat().catch((cause) => setError(String(cause)))}
-        >
+        <Button className="mt-2" size="sm" onClick={() => runChat().catch((cause) => setError(String(cause)))}>
           Run
-        </button>
+        </Button>
         <pre className="mt-3 h-full overflow-auto rounded border border-zinc-200 bg-zinc-50 p-2 text-xs whitespace-pre-wrap">
           {chatOutput || "Streaming output..."}
         </pre>
       </section>
 
       {error && (
-        <div className="fixed bottom-4 right-4 rounded bg-red-600 px-3 py-2 text-xs text-white">
-          {error}
-        </div>
+        <div className="fixed right-4 bottom-4 rounded bg-red-600 px-3 py-2 text-xs text-white">{error}</div>
       )}
     </div>
   )
