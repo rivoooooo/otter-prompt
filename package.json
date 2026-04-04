@@ -5,6 +5,8 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:app": "turbo dev --filter @otter-prompt/app",
+    "dev:web": "turbo dev --filter @otter-prompt/web",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "dev:desktop": "cd apps/desktop && wails3 dev"
