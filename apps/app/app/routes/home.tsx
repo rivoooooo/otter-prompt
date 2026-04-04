@@ -534,8 +534,8 @@ export default function Home() {
                 />
               </div>
 
-              <div className="sticky bottom-0 z-[1] flex-none border-t border-border/90 bg-background/85 px-4 pt-3 pb-[14px] backdrop-blur-sm lg:px-6">
-                <div className="scrollbar-thin mt-0 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
+              <div className="sticky bottom-0 z-[1] flex min-h-[72px] flex-none items-center border-t border-border/90 bg-background/85 px-4 py-3 backdrop-blur-sm lg:px-6">
+                <div className="scrollbar-thin flex w-full flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
                   <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     {hasActiveFile
                       ? isFileDirty
@@ -687,7 +687,7 @@ export default function Home() {
             </div>
 
             <TooltipProvider delay={120}>
-              <div className="flex min-h-[52px] flex-none items-center gap-3 border-t border-border/90 bg-transparent px-[18px] py-2.5">
+              <div className="flex min-h-[72px] flex-none items-center gap-3 border-t border-border/90 bg-transparent px-4 py-3 lg:px-6">
                 <div className="min-w-0 flex-1">
                   <span className="text-[0.72rem] tracking-[0.12px] text-muted-foreground uppercase">
                     {rightPanelView === "chat" ? "Chat" : "Files"}
