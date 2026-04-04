@@ -61,3 +61,8 @@ PRs should include:
 - Planning and architecture discussions must be recorded under `.docs/`.
 - Session notes go to `.docs/sessions/` with date-prefixed filenames.
 - Durable architecture decisions go to `.docs/decisions/` as ADR files.
+
+## App UI Workflow
+- Before any `apps/app` UI implementation, read `DESIGN.md` and follow it as the primary visual reference.
+- App buttons should use default size unless a specific interaction requires a different size.
+- Prefer `shadcn` components from `packages/ui` for layout and controls before custom markup.

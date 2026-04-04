@@ -1,5 +1,5 @@
 import { readdir, readFile, stat, mkdir, writeFile, rm } from "node:fs/promises"
-import { basename, dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve, sep } from "node:path"
 
 async function buildTree(path) {
   const entries = await readdir(path, { withFileTypes: true })
@@ -54,4 +54,27 @@ export async function writeTextFile(path, content) {
 
 export async function deletePath(path) {
   await rm(resolve(path), { recursive: true, force: true })
+}
+
+function assertDirectoryName(name) {
+  if (typeof name !== "string" || !name.trim()) {
+    throw new Error("name is required")
+  }
+
+  if (name.includes("/") || name.includes("\\") || name.includes("..")) {
+    throw new Error("invalid directory name")
+  }
+}
+
+export async function createDirectory(parentPath, name) {
+  assertDirectoryName(name)
+
+  const parent = resolve(parentPath)
+  const target = resolve(join(parent, name))
+  if (target !== parent && !target.startsWith(parent + sep)) {
+    throw new Error("invalid parent path")
+  }
+
+  await mkdir(target)
+  return target
 }

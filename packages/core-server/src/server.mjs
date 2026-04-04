@@ -1,8 +1,10 @@
 import { createServer } from "node:http"
 import { readFile } from "node:fs/promises"
+import { execFile } from "node:child_process"
 import { fileURLToPath } from "node:url"
 import { dirname, join, normalize } from "node:path"
 import { URL } from "node:url"
+import { promisify } from "node:util"
 import {
   createProject,
   getProject,
@@ -15,11 +17,14 @@ import {
   writeState,
 } from "./storage/state-store.mjs"
 import {
+  createDirectory,
   deletePath,
+  listDirectoryChildren,
+  listDirectoryRoots,
   listTree,
   readTextFile,
   writeTextFile,
-} from "./storage/local-fs.mjs"
+} from "./storage/fs-api.mjs"
 import { streamChat } from "./ai/ai-client.mjs"
 import { openInEditor } from "./editor.mjs"
 import { applySnapshot, buildSnapshot } from "./storage/project-snapshot.mjs"
@@ -27,6 +32,7 @@ import { getCloudSyncStatus, pullFromCloud, pushToCloud } from "./sync-client.mj
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DEFAULT_APP_DIST = normalize(join(__dirname, "../../../apps/app/build/client"))
+const execFileAsync = promisify(execFile)
 
 const CONTENT_TYPE = {
   ".html": "text/html; charset=utf-8",
@@ -95,7 +101,10 @@ async function tryServeAppAsset(req, res, pathname) {
 function json(res, status, body) {
   res.setHeader("Access-Control-Allow-Origin", "*")
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-otter-api-key",
+  )
   res.writeHead(status, { "Content-Type": "application/json" })
   res.end(JSON.stringify(body))
 }
@@ -113,6 +122,44 @@ async function readBody(req) {
   return JSON.parse(raw)
 }
 
+async function selectDirectory() {
+  const platform = process.platform
+
+  if (platform === "darwin") {
+    const script =
+      'POSIX path of (choose folder with prompt "Select project folder")'
+    const { stdout } = await execFileAsync("osascript", ["-e", script])
+    return stdout.trim()
+  }
+
+  if (platform === "win32") {
+    const command = [
+      "Add-Type -AssemblyName System.Windows.Forms",
+      "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
+      '$dialog.Description = "Select project folder"',
+      "$dialog.ShowNewFolderButton = $false",
+      "$result = $dialog.ShowDialog()",
+      'if ($result -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dialog.SelectedPath }',
+    ].join("; ")
+
+    const { stdout } = await execFileAsync("powershell", [
+      "-NoProfile",
+      "-Command",
+      command,
+    ])
+
+    return stdout.trim()
+  }
+
+  const { stdout } = await execFileAsync("zenity", [
+    "--file-selection",
+    "--directory",
+    "--title=Select project folder",
+  ])
+
+  return stdout.trim()
+}
+
 export function createCoreServer() {
   return createServer(async (req, res) => {
     const method = req.method || "GET"
@@ -122,7 +169,10 @@ export function createCoreServer() {
       if (method === "OPTIONS") {
         res.setHeader("Access-Control-Allow-Origin", "*")
         res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Authorization, x-otter-api-key",
+        )
         res.writeHead(204)
         res.end()
         return
@@ -130,6 +180,23 @@ export function createCoreServer() {
 
       if (method === "GET" && url.pathname === "/health") {
         return json(res, 200, { ok: true })
+      }
+
+      if (method === "GET" && url.pathname === "/models") {
+        const defaultModel = process.env.OTTER_MODEL || "gpt-4.1-mini"
+        const envModels = (process.env.OTTER_MODELS || "")
+          .split(",")
+          .map((model) => model.trim())
+          .filter(Boolean)
+        const models = Array.from(
+          new Set([defaultModel, ...envModels, "gpt-4.1", "gpt-4o-mini"]),
+        )
+
+        return json(res, 200, {
+          provider: "openai",
+          defaultModel,
+          models,
+        })
       }
 
       if (method === "GET" && url.pathname === "/projects") {
@@ -226,9 +293,60 @@ export function createCoreServer() {
         return json(res, 200, { ok: true })
       }
 
+      if (method === "POST" && url.pathname === "/dialog/directory") {
+        const path = await selectDirectory()
+        if (!path) {
+          return json(res, 400, { error: "No directory selected" })
+        }
+
+        return json(res, 200, { path })
+      }
+
+      if (method === "GET" && url.pathname === "/dialog/directories/roots") {
+        const projects = await listProjects()
+        const roots = await listDirectoryRoots(projects)
+        return json(res, 200, { roots })
+      }
+
+      if (method === "GET" && url.pathname === "/dialog/directories/children") {
+        const path = url.searchParams.get("path")
+        if (!path) {
+          return json(res, 400, { error: "path is required" })
+        }
+
+        const showHidden =
+          url.searchParams.get("showHidden") === "1" ||
+          url.searchParams.get("showHidden") === "true"
+        const children = await listDirectoryChildren(path, { showHidden })
+        return json(res, 200, { path, children })
+      }
+
+      if (method === "POST" && url.pathname === "/fs/directory") {
+        const body = await readBody(req)
+        if (!body?.parentPath) {
+          return json(res, 400, { error: "parentPath is required" })
+        }
+        if (!body?.name) {
+          return json(res, 400, { error: "name is required" })
+        }
+
+        try {
+          const path = await createDirectory(body.parentPath, body.name)
+          return json(res, 201, { path, name: body.name })
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "failed to create directory"
+          const status = message.includes("exist") ? 409 : 400
+          return json(res, status, { error: message })
+        }
+      }
+
       if (method === "POST" && url.pathname === "/chat/stream") {
         const body = await readBody(req)
         const message = body.message || ""
+        const systemPrompt = body.systemPrompt || ""
+        const provider = body.provider || "openai"
+        const model = body.model || undefined
         const apiKey = req.headers["x-otter-api-key"]
 
         res.writeHead(200, {
@@ -245,6 +363,9 @@ export function createCoreServer() {
 
         await streamChat({
           message,
+          systemPrompt,
+          provider,
+          model,
           write,
           apiKey: typeof apiKey === "string" ? apiKey : undefined,
         })

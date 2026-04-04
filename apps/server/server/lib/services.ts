@@ -11,11 +11,14 @@ export {
 } from "../../../../packages/core-server/src/storage/state-store.mjs"
 
 export {
+  createDirectory,
   deletePath,
+  listDirectoryChildren,
+  listDirectoryRoots,
   listTree,
   readTextFile,
   writeTextFile,
-} from "../../../../packages/core-server/src/storage/local-fs.mjs"
+} from "../../../../packages/core-server/src/storage/fs-api.mjs"
 
 export { streamChat } from "../../../../packages/core-server/src/ai/ai-client.mjs"
 export { openInEditor } from "../../../../packages/core-server/src/editor.mjs"
