@@ -53,6 +53,8 @@ type SyncStatus = {
 }
 
 export type WorkspaceShellContext = {
+  activeProject: Project | null
+  tree: TreeNode | null
   activeFile: string
   fileContent: string
   hasActiveFile: boolean
@@ -61,9 +63,16 @@ export type WorkspaceShellContext = {
   error: string
   setError: (message: string) => void
   setFileContent: (value: string) => void
+  openFile: (path: string) => Promise<void>
+  refreshTree: () => Promise<TreeNode | null>
   saveActiveFile: () => Promise<void>
   renameActiveFile: (nextPath: string) => Promise<string>
   deleteActiveFile: () => Promise<void>
+  renameWorkspacePath: (
+    currentPath: string,
+    nextPath: string
+  ) => Promise<string>
+  deleteWorkspacePath: (path: string) => Promise<void>
 }
 
 function findFirstFile(node: TreeNode): TreeNode | null {
@@ -81,6 +90,48 @@ function findFirstFile(node: TreeNode): TreeNode | null {
   return null
 }
 
+function treeContainsPath(node: TreeNode, path: string) {
+  if (node.path === path) {
+    return true
+  }
+
+  for (const child of node.children || []) {
+    if (treeContainsPath(child, path)) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function isPathWithin(path: string, rootPath: string) {
+  return (
+    path === rootPath ||
+    path.startsWith(`${rootPath}/`) ||
+    path.startsWith(`${rootPath}\\`)
+  )
+}
+
+function rewritePathPrefix(
+  path: string,
+  currentPrefix: string,
+  nextPrefix: string
+) {
+  if (path === currentPrefix) {
+    return nextPrefix
+  }
+
+  if (path.startsWith(`${currentPrefix}/`)) {
+    return `${nextPrefix}${path.slice(currentPrefix.length)}`
+  }
+
+  if (path.startsWith(`${currentPrefix}\\`)) {
+    return `${nextPrefix}${path.slice(currentPrefix.length)}`
+  }
+
+  return path
+}
+
 export default function WorkspaceRoute() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -89,6 +140,7 @@ export default function WorkspaceRoute() {
   const [projects, setProjects] = useState<Project[]>([])
   const [newProjectPath, setNewProjectPath] = useState("")
   const [addProjectDialogOpen, setAddProjectDialogOpen] = useState(false)
+  const [tree, setTree] = useState<TreeNode | null>(null)
   const [activeFile, setActiveFile] = useState("")
   const [fileContent, setFileContent] = useState("")
   const [savedFileContent, setSavedFileContent] = useState("")
@@ -126,31 +178,62 @@ export default function WorkspaceRoute() {
 
   useEffect(() => {
     if (!activeProject?.localPath) {
+      setTree(null)
       setActiveFile("")
       setFileContent("")
       setSavedFileContent("")
       return
     }
 
-    fetchTree(activeProject.localPath)
-      .then(async (nextTree) => {
-        const nextFile = findFirstFile(nextTree)
-        const isCurrentFileInProject =
-          activeFile === activeProject.localPath ||
-          activeFile.startsWith(`${activeProject.localPath}/`) ||
-          activeFile.startsWith(`${activeProject.localPath}\\`)
+    const projectPath = activeProject.localPath
+    let cancelled = false
 
-        if (isCurrentFileInProject || !nextFile) {
+    async function syncProjectFiles() {
+      try {
+        const nextTree = await fetchTree(projectPath)
+        if (cancelled) {
+          return
+        }
+
+        setTree(nextTree)
+
+        const hasValidActiveFile =
+          isPathWithin(activeFile, projectPath) &&
+          treeContainsPath(nextTree, activeFile)
+
+        if (hasValidActiveFile) {
+          return
+        }
+
+        const nextFile = findFirstFile(nextTree)
+        if (!nextFile) {
+          setActiveFile("")
+          setFileContent("")
+          setSavedFileContent("")
           return
         }
 
         const content = await fetchFile(nextFile.path)
+        if (cancelled) {
+          return
+        }
+
         setActiveFile(nextFile.path)
         setFileContent(content)
         setSavedFileContent(content)
-      })
-      .catch((cause) => setError(String(cause)))
-  }, [activeFile, activeProject])
+      } catch (cause) {
+        if (!cancelled) {
+          setError(String(cause))
+        }
+      }
+    }
+
+    void syncProjectFiles()
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeFile, activeProject?.localPath])
 
   useEffect(() => {
     if (!activeProject?.id) {
@@ -174,15 +257,67 @@ export default function WorkspaceRoute() {
     setSavedFileContent(fileContent)
   }
 
+  async function openFile(path: string) {
+    const content = await fetchFile(path)
+    setActiveFile(path)
+    setFileContent(content)
+    setSavedFileContent(content)
+  }
+
+  async function refreshTree() {
+    if (!activeProject?.localPath) {
+      setTree(null)
+      return null
+    }
+
+    const nextTree = await fetchTree(activeProject.localPath)
+    setTree(nextTree)
+    return nextTree
+  }
+
+  async function openFirstFileOrReset(nextTree: TreeNode | null) {
+    const nextFile = nextTree ? findFirstFile(nextTree) : null
+    if (!nextFile) {
+      setActiveFile("")
+      setFileContent("")
+      setSavedFileContent("")
+      return
+    }
+
+    await openFile(nextFile.path)
+  }
+
+  async function renameWorkspacePath(currentPath: string, nextPath: string) {
+    const renamedPath = await renameFile(currentPath, nextPath)
+
+    if (activeFile === currentPath || isPathWithin(activeFile, currentPath)) {
+      setActiveFile((current) =>
+        rewritePathPrefix(current, currentPath, renamedPath)
+      )
+    }
+
+    await refreshTree()
+    return renamedPath
+  }
+
   async function renameActiveFile(nextPath: string) {
     if (!activeFile) {
       return activeFile
     }
 
-    const renamedPath = await renameFile(activeFile, nextPath)
-    setActiveFile(renamedPath)
+    return renameWorkspacePath(activeFile, nextPath)
+  }
 
-    return renamedPath
+  async function deleteWorkspacePath(path: string) {
+    await removePath(path)
+
+    const deletedActiveFile =
+      activeFile === path || isPathWithin(activeFile, path)
+    const nextTree = await refreshTree()
+
+    if (deletedActiveFile) {
+      await openFirstFileOrReset(nextTree)
+    }
   }
 
   async function deleteActiveFile() {
@@ -190,24 +325,7 @@ export default function WorkspaceRoute() {
       return
     }
 
-    await removePath(activeFile)
-
-    if (activeProject?.localPath) {
-      const nextTree = await fetchTree(activeProject.localPath)
-      const nextFile = findFirstFile(nextTree)
-
-      if (nextFile) {
-        const content = await fetchFile(nextFile.path)
-        setActiveFile(nextFile.path)
-        setFileContent(content)
-        setSavedFileContent(content)
-        return
-      }
-    }
-
-    setActiveFile("")
-    setFileContent("")
-    setSavedFileContent("")
+    await deleteWorkspacePath(activeFile)
   }
 
   async function addProject() {
@@ -230,6 +348,8 @@ export default function WorkspaceRoute() {
   }
 
   const context: WorkspaceShellContext = {
+    activeProject,
+    tree,
     activeFile,
     fileContent,
     hasActiveFile,
@@ -238,9 +358,13 @@ export default function WorkspaceRoute() {
     error,
     setError,
     setFileContent,
+    openFile,
+    refreshTree,
     saveActiveFile,
     renameActiveFile,
     deleteActiveFile,
+    renameWorkspacePath,
+    deleteWorkspacePath,
   }
 
   return (
@@ -248,7 +372,7 @@ export default function WorkspaceRoute() {
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
-            <span className="font-heading truncate text-xl leading-none font-bold group-data-[collapsible=icon]:hidden">
+            <span className="truncate font-heading text-xl leading-none font-bold group-data-[collapsible=icon]:hidden">
               Otter
             </span>
             <SidebarTrigger />
@@ -366,7 +490,6 @@ export default function WorkspaceRoute() {
               ))}
             </SidebarGroupContent>
           </SidebarGroup>
-
         </SidebarContent>
 
         <SidebarFooter className="group-data-[collapsible=icon]:hidden">

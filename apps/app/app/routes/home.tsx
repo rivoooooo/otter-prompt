@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react"
 import { useNavigate, useOutletContext } from "react-router"
-import { ChevronDownIcon, SaveIcon, SendIcon, SparklesIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  FolderOpenIcon,
+  MessageSquareIcon,
+  SaveIcon,
+  SendIcon,
+  SparklesIcon,
+} from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -24,8 +31,15 @@ import {
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Separator } from "@workspace/ui/components/separator"
 import { Textarea } from "@workspace/ui/components/textarea"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip"
 import { cn } from "@workspace/ui/lib/utils"
 import { ClusterChat } from "../components/cluster-chat"
+import { ProjectFileExplorer } from "../components/project-file-explorer"
 import { apiStream } from "../lib/api-client"
 import {
   getAppSettings,
@@ -40,6 +54,8 @@ type ChatMessage = {
   role: "user" | "assistant"
   content: string
 }
+
+type RightPanelView = "chat" | "files"
 
 type FileNameParts = {
   baseName: string
@@ -126,6 +142,8 @@ function formatCount(value: number) {
 export default function Home() {
   const navigate = useNavigate()
   const {
+    activeProject,
+    tree,
     activeFile,
     fileContent,
     hasActiveFile,
@@ -133,9 +151,13 @@ export default function Home() {
     syncStatus,
     setFileContent,
     setError,
+    openFile,
+    refreshTree,
     saveActiveFile,
     renameActiveFile,
     deleteActiveFile,
+    renameWorkspacePath,
+    deleteWorkspacePath,
   } = useOutletContext<WorkspaceShellContext>()
 
   const [systemPrompt, setSystemPrompt] = useState("")
@@ -144,6 +166,7 @@ export default function Home() {
   const [settings, setSettings] = useState<AppSettings>(getAppSettings())
   const [clusterOpen, setClusterOpen] = useState(false)
   const [chatRunning, setChatRunning] = useState(false)
+  const [rightPanelView, setRightPanelView] = useState<RightPanelView>("chat")
   const [fileBaseName, setFileBaseName] = useState("")
   const [fileExtension, setFileExtension] = useState("")
   const [isDesktopLayout, setIsDesktopLayout] = useState(false)
@@ -448,127 +471,203 @@ export default function Home() {
         <ResizableHandle className="app-workspace-handle" />
 
         <ResizablePanel defaultSize={isDesktopLayout ? 42 : 40} minSize={25}>
-          <section className="app-panel app-debug-panel">
-            <div className="app-toolbar">
-              <div>
-                <p className="text-xs tracking-[0.12px] text-muted-foreground">
-                  Conversation
-                </p>
-                <h2 className="font-heading text-[1.45rem] leading-[1.2]">
-                  Chat Test
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Single conversation
-                </p>
-              </div>
-              <div className="app-toolbar-actions">
-                <DropdownMenu>
-                  <DropdownMenuTrigger render={<Button variant="outline" />}>
-                    More
-                    <ChevronDownIcon data-icon="inline-end" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => setSystemPrompt("")}>
-                      Clear Prompt
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setChatMessages([])}>
-                      Clear Conversation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/settings")}>
-                      Go to Settings
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button variant="outline" onClick={openClusterTest}>
-                  <SparklesIcon data-icon="inline-start" />
-                  Cluster Test
-                </Button>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="app-debug-section">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="app-chat-settings-label">System Prompt</p>
-                  <p className="text-sm text-muted-foreground">
-                    Applied to the single chat and cluster runs.
-                  </p>
-                </div>
-                <div className="app-debug-meta">
-                  <span className="app-pill">
-                    Provider: {effectiveProvider.providerId}
-                  </span>
-                  <span className="app-pill">
-                    Model: {effectiveProvider.defaultModel}
-                  </span>
-                </div>
-              </div>
-              <Textarea
-                value={systemPrompt}
-                onChange={(event) => setSystemPrompt(event.target.value)}
-                placeholder="Write system prompt here."
-                className="min-h-32"
-              />
-            </div>
-
-            <Separator />
-
-            <div className="app-debug-section app-debug-section--body">
-              <div>
-                <p className="app-chat-settings-label">Transcript</p>
-                <p className="text-sm text-muted-foreground">
-                  Inspect the single-run response before broadcasting to
-                  clusters.
-                </p>
-              </div>
-
-              <ScrollArea className="app-chat-log min-h-0 flex-1">
-                <div className="flex flex-col gap-2 pr-4 pb-4">
-                  {chatMessages.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Start a chat to test your prompt.
-                    </p>
-                  )}
-                  {chatMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "max-w-[92%] rounded-2xl px-3 py-2 text-sm",
-                        message.role === "user"
-                          ? "ml-auto bg-primary text-primary-foreground"
-                          : "border border-border bg-background text-foreground"
-                      )}
-                    >
-                      {message.content || (chatRunning ? "..." : "")}
+          <section className="app-panel app-module-panel">
+            <div className="app-module-viewport">
+              {rightPanelView === "chat" ? (
+                <div className="app-module-view">
+                  <div className="app-toolbar">
+                    <div>
+                      <p className="text-xs tracking-[0.12px] text-muted-foreground">
+                        Conversation
+                      </p>
+                      <h2 className="font-heading text-[1.45rem] leading-[1.2]">
+                        Chat Test
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Single conversation
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
+                    <div className="app-toolbar-actions">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={<Button variant="outline" />}
+                        >
+                          More
+                          <ChevronDownIcon data-icon="inline-end" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => setSystemPrompt("")}>
+                            Clear Prompt
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setChatMessages([])}>
+                            Clear Conversation
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => navigate("/settings")}
+                          >
+                            Go to Settings
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <Button variant="outline" onClick={openClusterTest}>
+                        <SparklesIcon data-icon="inline-start" />
+                        Cluster Test
+                      </Button>
+                    </div>
+                  </div>
 
-              <div className="app-composer">
-                <div className="flex flex-col gap-2">
-                  <Textarea
-                    value={chatInput}
-                    onChange={(event) => setChatInput(event.target.value)}
-                    placeholder="Send message for single chat test"
-                    className="min-h-24"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() =>
-                        runChat().catch((cause) => setError(String(cause)))
-                      }
-                      disabled={chatRunning}
-                    >
-                      <SendIcon data-icon="inline-start" />
-                      Send
-                    </Button>
+                  <Separator />
+
+                  <div className="app-debug-section">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="app-chat-settings-label">System Prompt</p>
+                        <p className="text-sm text-muted-foreground">
+                          Applied to the single chat and cluster runs.
+                        </p>
+                      </div>
+                      <div className="app-debug-meta">
+                        <span className="app-pill">
+                          Provider: {effectiveProvider.providerId}
+                        </span>
+                        <span className="app-pill">
+                          Model: {effectiveProvider.defaultModel}
+                        </span>
+                      </div>
+                    </div>
+                    <Textarea
+                      value={systemPrompt}
+                      onChange={(event) => setSystemPrompt(event.target.value)}
+                      placeholder="Write system prompt here."
+                      className="min-h-32"
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="app-debug-section app-debug-section--body">
+                    <div>
+                      <p className="app-chat-settings-label">Transcript</p>
+                      <p className="text-sm text-muted-foreground">
+                        Inspect the single-run response before broadcasting to
+                        clusters.
+                      </p>
+                    </div>
+
+                    <ScrollArea className="app-chat-log min-h-0 flex-1">
+                      <div className="flex flex-col gap-2 pr-4 pb-4">
+                        {chatMessages.length === 0 && (
+                          <p className="text-sm text-muted-foreground">
+                            Start a chat to test your prompt.
+                          </p>
+                        )}
+                        {chatMessages.map((message) => (
+                          <div
+                            key={message.id}
+                            className={cn(
+                              "max-w-[92%] rounded-2xl px-3 py-2 text-sm",
+                              message.role === "user"
+                                ? "ml-auto bg-primary text-primary-foreground"
+                                : "border border-border bg-background text-foreground"
+                            )}
+                          >
+                            {message.content || (chatRunning ? "..." : "")}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+
+                    <div className="app-composer">
+                      <div className="flex flex-col gap-2">
+                        <Textarea
+                          value={chatInput}
+                          onChange={(event) => setChatInput(event.target.value)}
+                          placeholder="Send message for single chat test"
+                          className="min-h-24"
+                        />
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={() =>
+                              runChat().catch((cause) =>
+                                setError(String(cause))
+                              )
+                            }
+                            disabled={chatRunning}
+                          >
+                            <SendIcon data-icon="inline-start" />
+                            Send
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <ProjectFileExplorer
+                  tree={tree}
+                  activeFile={activeFile}
+                  projectName={activeProject?.name || "Project"}
+                  projectPath={activeProject?.localPath || ""}
+                  onError={setError}
+                  onOpenFile={openFile}
+                  onRefresh={refreshTree}
+                  onRenamePath={renameWorkspacePath}
+                  onDeletePath={deleteWorkspacePath}
+                />
+              )}
             </div>
+
+            <TooltipProvider delay={120}>
+              <div className="app-module-dock">
+                <div className="app-module-dock-meta">
+                  <span className="app-module-dock-label">
+                    {rightPanelView === "chat" ? "Chat" : "Files"}
+                  </span>
+                </div>
+                <div className="app-module-dock-actions">
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Chat"
+                          className={cn(
+                            "app-module-dock-button",
+                            rightPanelView === "chat" &&
+                              "app-module-dock-button--active"
+                          )}
+                          onClick={() => setRightPanelView("chat")}
+                        />
+                      }
+                    >
+                      <MessageSquareIcon />
+                    </TooltipTrigger>
+                    <TooltipContent>Chat</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Files"
+                          className={cn(
+                            "app-module-dock-button",
+                            rightPanelView === "files" &&
+                              "app-module-dock-button--active"
+                          )}
+                          onClick={() => setRightPanelView("files")}
+                        />
+                      }
+                    >
+                      <FolderOpenIcon />
+                    </TooltipTrigger>
+                    <TooltipContent>Files</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+            </TooltipProvider>
           </section>
         </ResizablePanel>
       </ResizablePanelGroup>
