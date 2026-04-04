@@ -21,7 +21,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="app-shell">
+      <body className="min-h-svh bg-background text-foreground">
         <TooltipProvider>{children}</TooltipProvider>
         <ScrollRestoration />
         <Scripts />

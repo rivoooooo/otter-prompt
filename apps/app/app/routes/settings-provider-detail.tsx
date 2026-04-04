@@ -46,12 +46,14 @@ export default function SettingsProviderDetailRoute() {
 
   if (!catalog) {
     return (
-      <div className="settings-panel">
-        <header className="settings-panel-header">
-          <h2 className="settings-panel-title">Provider Not Found</h2>
+      <div className="flex flex-col">
+        <header className="flex flex-wrap items-start justify-between gap-3 pb-5">
+          <h2 className="font-heading text-[1.45rem] leading-[1.2] text-foreground">
+            Provider Not Found
+          </h2>
         </header>
         <Separator />
-        <div className="settings-actions-row settings-actions-row--start">
+        <div className="flex flex-wrap justify-start gap-2 pt-[18px]">
           <Button variant="outline" render={<Link to="/settings/providers" />}>
             <ArrowLeftIcon data-icon="inline-start" />
             Back
@@ -109,25 +111,31 @@ export default function SettingsProviderDetailRoute() {
   ].join(" · ")
 
   return (
-    <div className="settings-panel">
-      <header className="settings-panel-header settings-panel-header--tight">
+    <div className="flex flex-col">
+      <header className="flex flex-wrap items-start justify-start gap-3 pb-5">
         <Button variant="outline" render={<Link to="/settings/providers" />}>
           <ArrowLeftIcon data-icon="inline-start" />
           Providers
         </Button>
         <div>
-          <h2 className="settings-panel-title">{catalog.label}</h2>
-          <p className="settings-panel-meta">{providerMeta}</p>
+          <h2 className="font-heading text-[1.45rem] leading-[1.2] text-foreground">
+            {catalog.label}
+          </h2>
+          <p className="text-[0.9rem] leading-[1.5] text-muted-foreground">
+            {providerMeta}
+          </p>
         </div>
       </header>
 
-      <section className="settings-group">
-        <div className="settings-item-list">
-          <div className="settings-item settings-item--split">
-            <div className="settings-item-copy">
-              <p className="settings-item-label">Website</p>
+      <section className="flex flex-col gap-[18px] py-[18px]">
+        <div>
+          <div className="flex flex-col gap-[14px] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">
+                Website
+              </p>
             </div>
-            <div className="settings-item-control settings-link-row">
+            <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
               <a
                 className="underline underline-offset-4"
                 href={catalog.websiteUrl}
@@ -138,11 +146,11 @@ export default function SettingsProviderDetailRoute() {
               </a>
             </div>
           </div>
-          <div className="settings-item settings-item--split">
-            <div className="settings-item-copy">
-              <p className="settings-item-label">Docs</p>
+          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">Docs</p>
             </div>
-            <div className="settings-item-control settings-link-row">
+            <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
               <a
                 className="underline underline-offset-4"
                 href={catalog.docsUrl}
@@ -158,15 +166,19 @@ export default function SettingsProviderDetailRoute() {
 
       <Separator />
 
-      <section className="settings-group">
-        <h3 className="settings-group-title">Access</h3>
-        <div className="settings-item-list">
-          <div className="settings-item settings-item--split">
-            <div className="settings-item-copy">
-              <p className="settings-item-label">Enabled</p>
+      <section className="flex flex-col gap-[18px] py-[18px]">
+        <h3 className="font-heading text-[1.12rem] leading-[1.2] text-foreground">
+          Access
+        </h3>
+        <div>
+          <div className="flex flex-col gap-[14px] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">
+                Enabled
+              </p>
             </div>
-            <div className="settings-inline-toggle">
-              <label className="settings-choice-item">
+            <div className="flex items-center lg:flex-1 lg:justify-start">
+              <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
                 <input
                   type="checkbox"
                   checked={provider.enabled}
@@ -182,11 +194,13 @@ export default function SettingsProviderDetailRoute() {
             </div>
           </div>
 
-          <div className="settings-item settings-item--split">
-            <div className="settings-item-copy">
-              <p className="settings-item-label">API Key</p>
+          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">
+                API Key
+              </p>
             </div>
-            <div className="settings-item-control">
+            <div className="min-w-0 lg:flex-1">
               <Input
                 type="password"
                 value={provider.apiKey}
@@ -205,9 +219,11 @@ export default function SettingsProviderDetailRoute() {
 
       <Separator />
 
-      <section className="settings-group">
-        <div className="settings-group-header">
-          <h3 className="settings-group-title">Models</h3>
+      <section className="flex flex-col gap-[18px] py-[18px]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h3 className="font-heading text-[1.12rem] leading-[1.2] text-foreground">
+            Models
+          </h3>
           <Button
             variant="outline"
             onClick={() =>
@@ -227,18 +243,18 @@ export default function SettingsProviderDetailRoute() {
         </div>
 
         {provider.models.length === 0 ? (
-          <div className="settings-empty-state">
+          <div className="flex flex-col gap-1.5 rounded-[18px] bg-[#efe9df] p-4">
             <p className="font-medium text-foreground">No models yet</p>
           </div>
         ) : (
-          <div className="settings-model-editor">
+          <div className="flex max-h-[min(52svh,720px)] flex-col overflow-auto max-lg:max-h-none max-lg:overflow-visible">
             {provider.models.map((model, index) => (
               <div
                 key={`${model.id}-${index}`}
-                className="settings-model-editor-row"
+                className="flex min-w-0 flex-col gap-[14px] py-[18px] not-first:border-t not-first:border-[rgb(232_230_220_/_90%)]"
               >
-                <div className="settings-model-editor-top">
-                  <label className="settings-choice-item">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
                     <input
                       type="radio"
                       name={`default-model-${providerId}`}
@@ -262,9 +278,11 @@ export default function SettingsProviderDetailRoute() {
                   </Button>
                 </div>
 
-                <div className="settings-grid-2 settings-grid-2--dense">
-                  <label className="settings-field">
-                    <span className="settings-field-label">Model Label</span>
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <label className="flex min-w-0 flex-col gap-2">
+                    <span className="text-[0.88rem] font-medium text-foreground">
+                      Model Label
+                    </span>
                     <Input
                       value={model.label}
                       onChange={(event) =>
@@ -277,8 +295,10 @@ export default function SettingsProviderDetailRoute() {
                     />
                   </label>
 
-                  <label className="settings-field">
-                    <span className="settings-field-label">Model ID</span>
+                  <label className="flex min-w-0 flex-col gap-2">
+                    <span className="text-[0.88rem] font-medium text-foreground">
+                      Model ID
+                    </span>
                     <Input
                       value={model.id}
                       onChange={(event) =>
@@ -306,8 +326,10 @@ export default function SettingsProviderDetailRoute() {
                     />
                   </label>
 
-                  <label className="settings-field">
-                    <span className="settings-field-label">Temperature</span>
+                  <label className="flex min-w-0 flex-col gap-2">
+                    <span className="text-[0.88rem] font-medium text-foreground">
+                      Temperature
+                    </span>
                     <Input
                       inputMode="decimal"
                       value={String(model.temperature)}
@@ -323,8 +345,10 @@ export default function SettingsProviderDetailRoute() {
                     />
                   </label>
 
-                  <label className="settings-field">
-                    <span className="settings-field-label">Context Window</span>
+                  <label className="flex min-w-0 flex-col gap-2">
+                    <span className="text-[0.88rem] font-medium text-foreground">
+                      Context Window
+                    </span>
                     <Input
                       inputMode="numeric"
                       value={String(model.contextWindow)}
@@ -348,7 +372,7 @@ export default function SettingsProviderDetailRoute() {
 
       <Separator />
 
-      <div className="settings-actions-row">
+      <div className="flex flex-wrap justify-end gap-2 pt-[18px]">
         <Button
           variant="outline"
           onClick={() =>

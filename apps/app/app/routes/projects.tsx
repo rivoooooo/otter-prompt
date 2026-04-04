@@ -66,24 +66,24 @@ export default function ProjectsPage() {
   }
 
   return (
-    <main className="app-page projects-page">
-      <section className="projects-hero app-section-card">
-        <div className="projects-hero-copy">
-          <div className="projects-hero-kicker">
-            <p className="app-page-subtitle">Projects</p>
+    <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-[18px] p-4 md:p-6">
+      <section className="flex flex-wrap items-start justify-between gap-[18px] rounded-2xl border border-border bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_12%),transparent_38%),linear-gradient(135deg,#faf9f5_0%,#f3efe5_100%)] p-5 shadow-[0_0_0_1px_#f0eee6,0_4px_24px_rgb(0_0_0_/_5%)] sm:p-6">
+        <div className="flex max-w-[42rem] min-w-0 flex-col gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <p className="text-[0.9375rem] text-muted-foreground">Projects</p>
             <Badge variant="outline">
               {loading ? "Loading..." : `${projects.length} tracked`}
             </Badge>
           </div>
-          <h1 className="app-page-title projects-page-title">
+          <h1 className="font-heading text-[clamp(2.4rem,4vw,3.4rem)] leading-[1.06]">
             Project Library
           </h1>
-          <p className="projects-hero-description">
+          <p className="max-w-[38rem] text-base leading-[1.65] text-muted-foreground">
             Keep every imported workspace in one place, then jump into the
             editor through the new <code>/project/:id</code> route.
           </p>
         </div>
-        <div className="projects-hero-actions">
+        <div className="flex flex-wrap justify-end gap-2 max-sm:w-full max-sm:justify-stretch max-sm:[&>*]:flex-1 max-sm:[&>*]:basis-full">
           <Button
             variant="outline"
             onClick={() =>
@@ -152,27 +152,34 @@ export default function ProjectsPage() {
         </div>
       </section>
 
-      {error ? <div className="projects-inline-error">{error}</div> : null}
+      {error ? (
+        <div className="rounded-2xl border border-[rgb(181_51_51_/_14%)] bg-[rgb(181_51_51_/_8%)] px-[14px] py-3 text-[0.92rem] text-[#8d2f2f]">
+          {error}
+        </div>
+      ) : null}
 
-      <section className="projects-grid">
-        <Card className="projects-summary-card" size="sm">
+      <section className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
+        <Card
+          className="sticky top-6 bg-[linear-gradient(180deg,#f7f4ed_0%,#efe9df_100%)] max-lg:static"
+          size="sm"
+        >
           <CardHeader>
-            <CardTitle className="projects-summary-title">
-              Workspace Index
-            </CardTitle>
+            <CardTitle className="text-[1.2rem]">Workspace Index</CardTitle>
             <CardDescription>
               Use this page as the stable entry for browsing projects and
               importing new directories.
             </CardDescription>
           </CardHeader>
-          <CardContent className="projects-summary-metrics">
-            <div className="projects-metric">
-              <span className="projects-metric-value">
+          <CardContent className="flex flex-col gap-[14px]">
+            <div className="flex flex-col gap-1">
+              <span className="font-heading text-[2.35rem] leading-none text-foreground">
                 {loading ? "..." : projects.length}
               </span>
-              <span className="projects-metric-label">Known projects</span>
+              <span className="text-[0.84rem] tracking-[0.12px] text-muted-foreground">
+                Known projects
+              </span>
             </div>
-            <div className="projects-summary-note">
+            <div className="flex items-start gap-2.5 rounded-2xl bg-[rgb(255_255_255_/_72%)] px-[14px] py-3 text-[0.88rem] leading-[1.5] text-muted-foreground">
               <SparklesIcon />
               <span>
                 Detail pages now live under <code>/project/:id</code>.
@@ -186,9 +193,9 @@ export default function ProjectsPage() {
           </CardFooter>
         </Card>
 
-        <div className="projects-list">
+        <div className="flex flex-col gap-[14px]">
           {loading ? (
-            <Card className="projects-empty-card">
+            <Card className="min-h-56 justify-center">
               <CardHeader>
                 <CardTitle>Loading projects</CardTitle>
                 <CardDescription>
@@ -197,7 +204,7 @@ export default function ProjectsPage() {
               </CardHeader>
             </Card>
           ) : projects.length === 0 ? (
-            <Card className="projects-empty-card">
+            <Card className="min-h-56 justify-center">
               <CardHeader>
                 <CardTitle>No projects yet</CardTitle>
                 <CardDescription>
@@ -214,24 +221,27 @@ export default function ProjectsPage() {
             </Card>
           ) : (
             projects.map((project, index) => (
-              <Card key={project.id} className="projects-list-card">
-                <CardHeader className="projects-list-card-header">
+              <Card
+                key={project.id}
+                className="bg-[linear-gradient(180deg,rgb(250_249_245_/_92%)_0%,rgb(255_255_255_/_98%)_100%)]"
+              >
+                <CardHeader className="gap-3">
                   <div className="min-w-0">
-                    <div className="projects-list-card-topline">
+                    <div className="mb-2.5 flex flex-wrap items-center gap-2">
                       <Badge variant="outline">#{index + 1}</Badge>
-                      <span className="projects-list-card-id">
+                      <span className="text-[0.78rem] tracking-[0.12px] text-muted-foreground">
                         {project.id}
                       </span>
                     </div>
-                    <CardTitle className="projects-list-card-title">
+                    <CardTitle className="text-[1.45rem]">
                       {project.name}
                     </CardTitle>
-                    <CardDescription className="projects-list-card-path">
+                    <CardDescription className="font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere]">
                       {project.localPath}
                     </CardDescription>
                   </div>
                 </CardHeader>
-                <CardFooter className="projects-list-card-footer">
+                <CardFooter className="justify-end">
                   <Button render={<Link to={`/project/${project.id}`} />}>
                     Open Workspace
                     <ArrowRightIcon data-icon="inline-end" />

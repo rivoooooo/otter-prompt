@@ -41,7 +41,7 @@ function SettingsNavigation({
   onNavigate?: () => void
 }) {
   return (
-    <SidebarMenu className="settings-sidebar-menu">
+    <SidebarMenu className="gap-1.5">
       {items.map((item) => {
         const active = item.matchPrefix
           ? currentPath.startsWith(item.matchPrefix)
@@ -52,7 +52,7 @@ function SettingsNavigation({
             <SidebarMenuButton
               render={<NavLink to={item.to} />}
               isActive={active}
-              className="settings-sidebar-button"
+              className="min-h-[2.8rem] rounded-[18px] px-[14px] text-[0.95rem] text-foreground hover:bg-[#f0ece4] hover:text-foreground data-[active=true]:bg-[#e9e4db] data-[active=true]:font-medium data-[active=true]:text-foreground"
               onClick={onNavigate}
             >
               <span>{item.label}</span>
@@ -92,12 +92,14 @@ export default function SettingsRoute() {
   }
 
   return (
-    <main className="settings-page settings-center-page">
-      <div className="settings-page-header settings-page-header--top-level">
-        <div className="settings-header-title-row">
+    <main className="mx-auto min-h-svh w-full max-w-[1380px] p-4 md:p-6">
+      <div className="mb-[22px] flex flex-col items-start justify-between gap-3 md:flex-row md:items-start">
+        <div className="flex items-center gap-3">
           <div className="md:hidden">
             <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-              <SheetTrigger render={<Button variant="outline" size="icon-sm" />}>
+              <SheetTrigger
+                render={<Button variant="outline" size="icon-sm" />}
+              >
                 <MenuIcon />
                 <span className="sr-only">Open settings sections</span>
               </SheetTrigger>
@@ -115,9 +117,11 @@ export default function SettingsRoute() {
               </SheetContent>
             </Sheet>
           </div>
-          <h1 className="settings-page-title">Settings</h1>
+          <h1 className="font-heading text-[clamp(2.1rem,3vw,2.5rem)] leading-[1.08]">
+            Settings
+          </h1>
         </div>
-        <div className="settings-state-line">
+        <div className="text-[0.8125rem] text-muted-foreground">
           {canSave ? "Unsaved changes" : "All changes saved"}
           {savedAt && !canSave
             ? ` at ${new Date(savedAt).toLocaleTimeString()}`
@@ -125,12 +129,15 @@ export default function SettingsRoute() {
         </div>
       </div>
 
-      <SidebarProvider defaultOpen className="settings-center-layout">
+      <SidebarProvider
+        defaultOpen
+        className="block w-full lg:flex lg:items-start lg:gap-7"
+      >
         <Sidebar
           collapsible="none"
-          className="settings-center-sidebar-shell hidden bg-transparent text-foreground md:flex"
+          className="hidden w-56 self-start bg-transparent text-foreground md:flex lg:sticky lg:top-6"
         >
-          <SidebarContent className="settings-center-sidebar-content">
+          <SidebarContent className="pt-1.5">
             <SidebarGroup className="p-0">
               <SidebarGroupContent>
                 <SettingsNavigation
@@ -142,7 +149,7 @@ export default function SettingsRoute() {
           </SidebarContent>
         </Sidebar>
 
-        <SidebarInset className="settings-center-inset">
+        <SidebarInset className="min-w-0 bg-transparent lg:pt-1">
           <Outlet context={context} />
         </SidebarInset>
       </SidebarProvider>

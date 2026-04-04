@@ -354,16 +354,16 @@ export default function Home() {
     <>
       <ResizablePanelGroup
         direction={isDesktopLayout ? "horizontal" : "vertical"}
-        className="app-main-grid"
+        className="min-h-dvh"
       >
         <ResizablePanel defaultSize={isDesktopLayout ? 58 : 60} minSize={35}>
-          <main className="app-panel app-editor-panel">
-            <div className="app-toolbar app-editor-toolbar">
-              <div className="app-editor-heading">
+          <main className="flex min-h-0 flex-col gap-3 bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] p-4 lg:p-6">
+            <div className="mb-0 flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-xs tracking-[0.12px] text-muted-foreground">
                   File
                 </p>
-                <div className="app-editor-title-row">
+                <div className="mt-2 flex flex-wrap items-center gap-2.5">
                   <Input
                     value={fileBaseName}
                     onChange={(event) => setFileBaseName(event.target.value)}
@@ -371,7 +371,7 @@ export default function Home() {
                     onKeyDown={handleRenameKeyDown}
                     placeholder="untitled"
                     disabled={!hasActiveFile || renameRunning}
-                    className="app-editor-title-input"
+                    className="h-auto min-w-0 flex-[1_1_100%] border-0 bg-transparent p-0 font-heading text-[clamp(1.8rem,3vw,2.4rem)] leading-[1.05] shadow-none focus-visible:rounded-xl focus-visible:bg-[rgb(255_255_255_/_72%)] focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:min-w-64 lg:flex-[1_1_20rem]"
                   />
                   <Input
                     value={fileExtension}
@@ -380,14 +380,14 @@ export default function Home() {
                     onKeyDown={handleRenameKeyDown}
                     placeholder=".md"
                     disabled={!hasActiveFile || renameRunning}
-                    className="app-editor-extension-input"
+                    className="h-auto w-full flex-none border-0 bg-transparent p-0 font-heading text-[clamp(1.35rem,2vw,1.65rem)] leading-[1.1] text-muted-foreground shadow-none focus-visible:rounded-xl focus-visible:bg-[rgb(255_255_255_/_72%)] focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:w-[6.5rem]"
                   />
                 </div>
-                <p className="app-editor-path">
+                <p className="mt-2.5 font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere] text-muted-foreground">
                   {activeFile || "No file available in this project."}
                 </p>
               </div>
-              <div className="app-toolbar-actions">
+              <div className="flex flex-wrap gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="outline" />}>
                     Actions
@@ -419,45 +419,45 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="app-editor-shell">
-              <div className="app-editor-surface">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[rgb(232_230_220_/_92%)] bg-transparent">
+              <div className="min-h-0 flex-1 px-0 pt-[18px]">
                 <Textarea
                   value={fileContent}
                   onChange={(event) => setFileContent(event.target.value)}
                   placeholder="No file available in this project."
                   disabled={!hasActiveFile}
-                  className="app-editor-textarea font-mono"
+                  className="h-full min-h-full resize-none border-0 bg-transparent px-0 pt-2 pb-5 font-mono text-[0.95rem] leading-[1.75] shadow-none placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
                 />
               </div>
 
-              <div className="app-editor-footer">
-                <div className="app-status-line app-editor-status-line">
-                  <span className="app-pill">
+              <div className="relative flex-none border-t border-[rgb(232_230_220_/_95%)] bg-[rgb(245_244_237_/_88%)] px-0 pt-3 pb-[14px]">
+                <div className="scrollbar-thin mt-0 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     {hasActiveFile
                       ? isFileDirty
                         ? "Status: Unsaved"
                         : "Status: Saved"
                       : "Status: No file"}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Chars: {formatCount(contentStats.characters)}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Words: {formatCount(contentStats.words)}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Tokens: {formatCount(contentStats.tokens)}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Lines: {formatCount(contentStats.lines)}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Last sync: {syncStatus?.local?.lastSyncedAt || "never"}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Cloud rev: {syncStatus?.cloud?.revision ?? 0}
                   </span>
-                  <span className="app-pill">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
                     Conflicts: {syncStatus?.local?.conflicts?.length || 0}
                   </span>
                 </div>
@@ -466,19 +466,19 @@ export default function Home() {
           </main>
         </ResizablePanel>
 
-        <ResizableHandle className="app-workspace-handle" />
+        <ResizableHandle className="bg-transparent" />
 
         <ResizablePanel defaultSize={isDesktopLayout ? 42 : 40} minSize={25}>
-          <section className="app-panel app-module-panel">
+          <section className="flex min-h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 lg:border-l lg:border-border">
             <div
               className={cn(
-                "app-module-viewport",
-                rightPanelView === "chat" && "app-module-viewport--chat"
+                "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+                rightPanelView === "chat" && "flex flex-col overflow-hidden"
               )}
             >
               {rightPanelView === "chat" ? (
-                <div className="app-module-view app-chat-shell">
-                  <div className="app-toolbar">
+                <div className="flex min-h-full flex-1 flex-col p-4 lg:p-6">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-xs tracking-[0.12px] text-muted-foreground">
                         Conversation
@@ -490,7 +490,7 @@ export default function Home() {
                         Single conversation
                       </p>
                     </div>
-                    <div className="app-toolbar-actions">
+                    <div className="flex flex-wrap gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={<Button variant="outline" />}
@@ -518,11 +518,11 @@ export default function Home() {
 
                   <Separator />
 
-                  <div className="app-chat-stage">
-                    <ScrollArea className="app-chat-log">
-                      <div className="app-chat-log-inner">
+                  <div className="relative flex min-h-0 flex-1 flex-col pt-[18px]">
+                    <ScrollArea className="min-h-0 flex-1 p-0">
+                      <div className="flex flex-col gap-3 pr-1 pb-[228px]">
                         {chatMessages.length === 0 && (
-                          <p className="app-chat-empty-state">
+                          <p className="max-w-[28rem] pt-[14px] text-[0.96rem] leading-[1.6] text-[#87867f]">
                             Start a conversation to test the model.
                           </p>
                         )}
@@ -530,10 +530,10 @@ export default function Home() {
                           <div
                             key={message.id}
                             className={cn(
-                              "app-chat-bubble",
+                              "max-w-[min(86%,42rem)] rounded-[24px] px-4 py-[14px] text-[0.96rem] leading-[1.6] shadow-[0_0_0_1px_rgb(240_238_230_/_88%)]",
                               message.role === "user"
-                                ? "app-chat-bubble--user"
-                                : "app-chat-bubble--assistant"
+                                ? "ml-auto bg-[#c96442] text-[#faf9f5] shadow-[0_18px_38px_rgb(201_100_66_/_18%),0_0_0_1px_rgb(201_100_66_/_92%)]"
+                                : "border border-[rgb(232_230_220_/_96%)] bg-[rgb(250_249_245_/_94%)] text-[#3d3d3a]"
                             )}
                           >
                             {message.content || (chatRunning ? "..." : "")}
@@ -542,15 +542,15 @@ export default function Home() {
                       </div>
                     </ScrollArea>
 
-                    <div className="app-chat-composer-wrap">
-                      <div className="app-chat-composer">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-[linear-gradient(180deg,rgb(245_244_237_/_0%)_0%,rgb(245_244_237_/_78%)_34%,rgb(245_244_237_/_96%)_62%,rgb(245_244_237_/_100%)_100%)] pt-7">
+                      <div className="pointer-events-auto flex flex-col gap-3 rounded-[28px] border border-[rgb(232_230_220_/_96%)] bg-[rgb(250_249_245_/_94%)] p-[18px] shadow-[0_0_0_1px_rgb(240_238_230_/_96%)] backdrop-blur-[16px]">
                         <Textarea
                           value={chatInput}
                           onChange={(event) => setChatInput(event.target.value)}
                           placeholder="Send message for single chat test"
                           className="min-h-24 resize-none rounded-none border-0 bg-transparent p-0 text-[0.98rem] leading-[1.6] text-[#141413] shadow-none outline-none placeholder:text-[#87867f] focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                         />
-                        <div className="app-chat-composer-actions">
+                        <div className="flex justify-end">
                           <Button
                             onClick={() =>
                               runChat().catch((cause) =>
@@ -583,13 +583,13 @@ export default function Home() {
             </div>
 
             <TooltipProvider delay={120}>
-              <div className="app-module-dock">
-                <div className="app-module-dock-meta">
-                  <span className="app-module-dock-label">
+              <div className="flex min-h-[52px] flex-none items-center gap-3 border-t border-[rgb(232_230_220_/_95%)] bg-transparent px-[18px] py-2.5">
+                <div className="min-w-0 flex-1">
+                  <span className="text-[0.72rem] tracking-[0.12px] text-muted-foreground uppercase">
                     {rightPanelView === "chat" ? "Chat" : "Files"}
                   </span>
                 </div>
-                <div className="app-module-dock-actions">
+                <div className="ml-auto flex flex-none items-center justify-end gap-1.5">
                   <Tooltip>
                     <TooltipTrigger
                       render={
@@ -598,9 +598,9 @@ export default function Home() {
                           size="icon-sm"
                           aria-label="Chat"
                           className={cn(
-                            "app-module-dock-button",
+                            "text-muted-foreground",
                             rightPanelView === "chat" &&
-                              "app-module-dock-button--active"
+                              "bg-[rgb(255_255_255_/_72%)] text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)]"
                           )}
                           onClick={() => setRightPanelView("chat")}
                         />
@@ -618,9 +618,9 @@ export default function Home() {
                           size="icon-sm"
                           aria-label="Files"
                           className={cn(
-                            "app-module-dock-button",
+                            "text-muted-foreground",
                             rightPanelView === "files" &&
-                              "app-module-dock-button--active"
+                              "bg-[rgb(255_255_255_/_72%)] text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)]"
                           )}
                           onClick={() => setRightPanelView("files")}
                         />

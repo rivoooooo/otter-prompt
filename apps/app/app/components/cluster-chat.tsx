@@ -199,7 +199,7 @@ export function ClusterChat({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="app-chat-title font-heading text-lg">Cluster Test</h2>
+          <h2 className="font-heading text-lg text-[#faf9f5]">Cluster Test</h2>
           <p className="text-sm text-[#b0aea5]">
             Compare multiple provider/model runs side by side.
           </p>
@@ -235,7 +235,7 @@ export function ClusterChat({
                   Compare output with independent provider and model settings.
                 </p>
               </div>
-              <span className="app-pill border-[#3d3d3a] bg-[#1c1c1b] text-[#b0aea5]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3d3d3a] bg-[#1c1c1b] px-2.5 py-0.5 text-xs text-[#b0aea5]">
                 {thread.running ? "Running" : "Idle"}
               </span>
             </div>
@@ -295,13 +295,13 @@ export function ClusterChat({
         ))}
       </div>
 
-      <div className="app-composer app-composer--dark sticky bottom-0">
+      <div className="sticky bottom-0 mt-0 border-t border-[#3d3d3a] bg-transparent pt-4 shadow-none">
         <div className="flex flex-col gap-2">
           <Textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Send one message to all clusters"
-            className="app-dark-textarea min-h-24"
+            className="min-h-24 border-[#3d3d3a] bg-[#141413] text-[#faf9f5] placeholder:text-[#87867f]"
           />
           <div className="flex justify-end">
             <Button

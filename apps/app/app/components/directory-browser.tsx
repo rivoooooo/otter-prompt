@@ -162,7 +162,7 @@ export function DirectoryBrowser({
           {showHidden ? "Hide Hidden" : "Show Hidden"}
         </Button>
       </div>
-      <ScrollArea className="app-section-card h-72 p-2">
+      <ScrollArea className="h-72 rounded-2xl border border-border bg-card p-2 shadow-[0_0_0_1px_#f0eee6,0_4px_24px_rgb(0_0_0_/_5%)]">
         {loadingRoots && (
           <p className="text-sm text-muted-foreground">Loading roots...</p>
         )}

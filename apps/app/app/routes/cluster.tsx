@@ -30,12 +30,16 @@ export default function ClusterPage() {
   const effectiveProvider = getEffectiveProviderConfig(settings)
 
   return (
-    <main className="settings-page">
-      <div className="settings-page-header">
+    <main className="min-h-svh p-4 md:p-6">
+      <div className="mb-3 flex flex-col items-start justify-between gap-3 md:flex-row md:items-start">
         <div>
-          <p className="app-page-subtitle">Parallel Comparison</p>
-          <h1 className="app-page-title">Cluster Test</h1>
-          <p className="app-page-subtitle">
+          <p className="text-[0.9375rem] text-muted-foreground">
+            Parallel Comparison
+          </p>
+          <h1 className="font-heading text-[1.6rem] leading-[1.2] md:text-[2rem]">
+            Cluster Test
+          </h1>
+          <p className="text-[0.9375rem] text-muted-foreground">
             Broadcast one message to all conversation clusters.
           </p>
         </div>
@@ -58,7 +62,7 @@ export default function ClusterPage() {
 
       <Separator />
 
-      <div className="app-cluster-stage min-h-0 flex-1">
+      <div className="min-h-0 flex-1 bg-[#141413] px-4 py-5 lg:px-6">
         <ClusterChat
           systemPrompt={systemPrompt}
           apiKey={effectiveProvider.apiKey}

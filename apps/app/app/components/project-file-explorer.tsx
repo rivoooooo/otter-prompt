@@ -316,11 +316,11 @@ export function ProjectFileExplorer({
 
     return (
       <div
-        className="app-files-tree-item app-files-tree-item--draft"
+        className="flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] bg-[rgb(255_255_255_/_44%)] px-1.5 py-1 transition-[background-color,color] duration-120"
         style={{ paddingLeft: `${level * 14}px` }}
       >
-        <span className="app-files-tree-spacer" />
-        <span className="app-files-tree-icon">
+        <span className="inline-flex w-6 flex-none items-center justify-center text-muted-foreground" />
+        <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
           {draftAction.type === "new-folder" ? (
             <FolderOpenIcon />
           ) : (
@@ -340,11 +340,11 @@ export function ProjectFileExplorer({
           placeholder={
             draftAction.type === "new-folder" ? "folder-name" : "file-name.ts"
           }
-          className="app-files-tree-input"
+          className="h-8 min-w-0 flex-1 bg-[rgb(255_255_255_/_84%)]"
           disabled={submitting}
           autoFocus
         />
-        <div className="app-files-tree-inline-actions">
+        <div className="flex flex-none items-center gap-1">
           <Button
             variant="ghost"
             size="xs"
@@ -376,16 +376,20 @@ export function ProjectFileExplorer({
     const canDeleteOrRename = node.path !== tree?.path
 
     return (
-      <div key={node.path} className="app-files-tree-branch">
-        <div className="app-files-tree-row">
+      <div key={node.path} className="flex flex-col gap-0.5">
+        <div className="min-w-0">
           <div
-            className={cn("app-files-tree-item", isActive && "is-active")}
+            className={cn(
+              "group flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] px-1.5 py-1 transition-[background-color,color] duration-120 focus-within:bg-[rgb(255_255_255_/_48%)] hover:bg-[rgb(255_255_255_/_48%)]",
+              isActive &&
+                "bg-[rgb(201_100_66_/_12%)] text-foreground shadow-[inset_0_0_0_1px_rgb(201_100_66_/_20%)]"
+            )}
             style={{ paddingLeft: `${level * 14}px` }}
           >
             {isDirectory ? (
               <button
                 type="button"
-                className="app-files-tree-toggle"
+                className="inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-muted-foreground hover:bg-[rgb(255_255_255_/_56%)] hover:text-foreground"
                 onClick={() =>
                   setExpandedPaths((current) => ({
                     ...current,
@@ -397,12 +401,12 @@ export function ProjectFileExplorer({
                 {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
               </button>
             ) : (
-              <span className="app-files-tree-spacer" />
+              <span className="inline-flex w-6 flex-none items-center justify-center text-muted-foreground" />
             )}
 
             <button
               type="button"
-              className="app-files-tree-label"
+              className="flex min-w-0 flex-1 items-center gap-2 text-left"
               onClick={() =>
                 isDirectory
                   ? setExpandedPaths((current) => ({
@@ -415,7 +419,7 @@ export function ProjectFileExplorer({
               }
               title={node.path}
             >
-              <span className="app-files-tree-icon">
+              <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
                 {isDirectory ? (
                   isExpanded ? (
                     <FolderOpenIcon />
@@ -438,17 +442,17 @@ export function ProjectFileExplorer({
                     )
                   }
                   onKeyDown={handleDraftKeyDown}
-                  className="app-files-tree-input"
+                  className="h-8 min-w-0 flex-1 bg-[rgb(255_255_255_/_84%)]"
                   disabled={submitting}
                   autoFocus
                 />
               ) : (
-                <span className="app-files-tree-name">{node.name}</span>
+                <span className="truncate">{node.name}</span>
               )}
             </button>
 
             {isRenaming ? (
-              <div className="app-files-tree-inline-actions">
+              <div className="flex flex-none items-center gap-1">
                 <Button
                   variant="ghost"
                   size="xs"
@@ -467,14 +471,21 @@ export function ProjectFileExplorer({
                 </Button>
               </div>
             ) : (
-              <div className="app-files-tree-actions">
+              <div
+                className={cn(
+                  "flex flex-none items-center transition-opacity duration-120",
+                  isActive
+                    ? "opacity-100"
+                    : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+                )}
+              >
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
                       <Button
                         variant="ghost"
                         size="icon-xs"
-                        className="app-files-tree-menu-button"
+                        className="text-muted-foreground"
                         aria-label={`${node.name} actions`}
                       />
                     }
@@ -523,7 +534,7 @@ export function ProjectFileExplorer({
         </div>
 
         {isDirectory && isExpanded ? (
-          <div className="app-files-tree-children">
+          <div className="flex flex-col gap-0.5">
             {renderDraftRow(node.path, level + 1)}
             {(node.children || []).map((child) => renderNode(child, level + 1))}
           </div>
@@ -534,8 +545,8 @@ export function ProjectFileExplorer({
 
   return (
     <TooltipProvider delay={120}>
-      <div className="app-module-view">
-        <div className="app-toolbar">
+      <div className="flex min-h-full flex-col p-4 lg:p-6">
+        <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs tracking-[0.12px] text-muted-foreground">
               Files
@@ -543,9 +554,11 @@ export function ProjectFileExplorer({
             <h2 className="font-heading text-[1.45rem] leading-[1.2]">
               Project Explorer
             </h2>
-            <p className="app-editor-path">{projectPath}</p>
+            <p className="mt-2.5 font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere] text-muted-foreground">
+              {projectPath}
+            </p>
           </div>
-          <div className="app-toolbar-actions">
+          <div className="flex flex-wrap gap-2">
             <Tooltip>
               <TooltipTrigger
                 render={
@@ -599,26 +612,28 @@ export function ProjectFileExplorer({
           </div>
         </div>
 
-        <div className="app-files-shell">
-          <div className="app-files-summary">
-            <span className="app-pill">{projectName}</span>
-            <span className="app-pill">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 border-t border-[rgb(232_230_220_/_92%)] pt-[18px]">
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+              {projectName}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
               {tree?.children?.length ?? 0} top-level items
             </span>
           </div>
 
           {!tree ? (
-            <div className="app-files-empty">
+            <div className="flex min-h-40 flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
               <LoaderCircleIcon className="animate-spin" />
               <p>Loading project tree...</p>
             </div>
           ) : (
-            <ScrollArea className="app-files-scroll">
-              <div className="app-files-scroll-inner">
-                <div className="app-files-root-row">
+            <ScrollArea className="min-h-0 flex-1">
+              <div className="flex flex-col gap-0.5 pr-[14px] pb-5">
+                <div className="mb-1">
                   <button
                     type="button"
-                    className="app-files-root-label"
+                    className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-2.5 py-1 font-heading text-base leading-[1.2] text-foreground hover:bg-[rgb(255_255_255_/_52%)]"
                     onClick={() =>
                       setExpandedPaths((current) => ({
                         ...current,
@@ -627,7 +642,7 @@ export function ProjectFileExplorer({
                     }
                     title={tree.path}
                   >
-                    <span className="app-files-tree-icon">
+                    <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
                       {expandedPaths[tree.path] ? (
                         <FolderOpenIcon />
                       ) : (
@@ -649,7 +664,7 @@ export function ProjectFileExplorer({
                 {expandedPaths[tree.path] &&
                 (!tree.children || tree.children.length === 0) &&
                 !draftAction ? (
-                  <div className="app-files-empty app-files-empty--inline">
+                  <div className="flex min-h-32 flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
                     <p>No files yet. Start with a new file or folder.</p>
                   </div>
                 ) : null}

@@ -14,13 +14,17 @@ export default function SettingsProvidersRoute() {
   const effective = getEffectiveProviderConfig(draft)
 
   return (
-    <div className="settings-panel">
-      <header className="settings-panel-header settings-panel-header--split">
-        <h2 className="settings-panel-title">Providers</h2>
-        <p className="settings-panel-meta">{effective.providerId}</p>
+    <div className="flex flex-col">
+      <header className="flex flex-wrap items-baseline justify-between gap-3 pb-5">
+        <h2 className="font-heading text-[1.45rem] leading-[1.2] text-foreground">
+          Providers
+        </h2>
+        <p className="text-[0.9rem] leading-[1.5] text-muted-foreground">
+          {effective.providerId}
+        </p>
       </header>
 
-      <div className="settings-provider-list-clean">
+      <div className="flex flex-col">
         {getProviderCatalog().map((entry, index) => {
           const provider = getProviderSettings(draft, entry.id)
           const meta = [
@@ -36,14 +40,16 @@ export default function SettingsProvidersRoute() {
           return (
             <div key={entry.id}>
               {index > 0 ? <Separator /> : null}
-              <section className="settings-provider-list-row">
-                <div className="settings-provider-list-copy">
-                  <h3 className="settings-provider-list-title">
+              <section className="flex flex-wrap items-center justify-between gap-3 py-[18px] lg:flex-nowrap">
+                <div className="flex flex-col gap-1">
+                  <h3 className="font-heading text-[1.12rem] leading-[1.2] text-foreground">
                     {entry.label}
                   </h3>
-                  <p className="settings-provider-list-meta">{meta}</p>
+                  <p className="text-[0.85rem] leading-[1.5] text-muted-foreground">
+                    {meta}
+                  </p>
                 </div>
-                <div className="settings-provider-list-action">
+                <div className="flex items-center lg:justify-end">
                   <Button
                     variant="outline"
                     render={<Link to={`/settings/providers/${entry.id}`} />}
