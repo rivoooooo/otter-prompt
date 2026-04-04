@@ -425,14 +425,18 @@ export default function Home() {
         direction={isDesktopLayout ? "horizontal" : "vertical"}
         className="min-h-dvh"
       >
-        <ResizablePanel defaultSize={isDesktopLayout ? 58 : 60} minSize={35}>
-          <main className="flex min-h-dvh flex-col bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] dark:bg-none dark:bg-background">
+        <ResizablePanel
+          defaultSize={isDesktopLayout ? 58 : 60}
+          minSize={35}
+          className="min-w-0"
+        >
+          <main className="flex min-h-dvh min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] dark:bg-background dark:bg-none">
             <div className="flex flex-none items-start justify-between gap-3 overflow-hidden px-4 pt-4 pb-5 lg:px-6 lg:pt-6 lg:pb-6">
               <div className="min-w-0 flex-1 overflow-hidden">
                 {isEditingFileName ? (
                   <div
                     ref={fileNameEditorRef}
-                    className="flex min-w-max items-baseline gap-x-0.5 overflow-hidden whitespace-nowrap"
+                    className="flex min-w-0 flex-1 items-baseline gap-x-0.5 overflow-hidden whitespace-nowrap"
                   >
                     <input
                       ref={fileBaseNameInputRef}
@@ -442,10 +446,10 @@ export default function Home() {
                       onKeyDown={handleRenameKeyDown}
                       placeholder=""
                       disabled={!hasActiveFile || renameRunning}
-                      className="field-sizing-content h-auto min-w-0 flex-none border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      className="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     />
-                    <div className="flex w-max min-w-0 shrink-0 flex-none items-baseline whitespace-nowrap">
-                      <span className="shrink-0 flex-none font-heading text-2xl leading-none text-muted-foreground">
+                    <div className="flex w-max min-w-0 flex-none shrink-0 items-baseline whitespace-nowrap">
+                      <span className="flex-none shrink-0 font-heading text-2xl leading-none text-muted-foreground">
                         .
                       </span>
                       <input
@@ -461,14 +465,14 @@ export default function Home() {
                         onKeyDown={handleRenameKeyDown}
                         placeholder="md"
                         disabled={!hasActiveFile || renameRunning}
-                        className="field-sizing-content h-auto min-w-[2ch] w-max flex-none border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-muted-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                        className="field-sizing-content h-auto w-max min-w-[2ch] flex-none border-0 bg-transparent p-0 font-heading !text-2xl leading-none text-muted-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                       />
                     </div>
                   </div>
                 ) : (
                   <button
                     type="button"
-                    className="inline-flex w-fit max-w-full min-w-0 items-baseline gap-x-0.5 overflow-hidden text-left"
+                    className="flex min-w-0 flex-1 items-baseline gap-x-0.5 overflow-hidden text-left"
                     onClick={() => setIsEditingFileName(true)}
                     disabled={!hasActiveFile || renameRunning}
                     title={
@@ -481,14 +485,14 @@ export default function Home() {
                       {fileBaseName || "untitled"}
                     </span>
                     {fileExtensionText ? (
-                      <span className="shrink-0 flex-none whitespace-nowrap font-heading text-2xl leading-none text-muted-foreground">
+                      <span className="flex-none shrink-0 font-heading text-2xl leading-none whitespace-nowrap text-muted-foreground">
                         .{fileExtensionText}
                       </span>
                     ) : null}
                   </button>
                 )}
               </div>
-              <div className="shrink-0 flex flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
@@ -572,28 +576,24 @@ export default function Home() {
 
         <ResizableHandle className="bg-transparent" />
 
-        <ResizablePanel defaultSize={isDesktopLayout ? 42 : 40} minSize={25}>
-          <section className="flex min-h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 dark:bg-none dark:bg-background lg:border-l lg:border-border">
+        <ResizablePanel
+          defaultSize={isDesktopLayout ? 42 : 40}
+          minSize={25}
+          className="min-w-0"
+        >
+          <section className="flex min-h-full min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 lg:border-l lg:border-border dark:bg-background dark:bg-none">
             <div
               className={cn(
-                "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+                "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
                 rightPanelView === "chat" && "flex flex-col overflow-hidden"
               )}
             >
               {rightPanelView === "chat" ? (
-                <div className="flex min-h-full flex-1 flex-col p-4 lg:p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-xs tracking-[0.12px] text-muted-foreground">
-                        Conversation
-                      </p>
-                      <h2 className="font-heading text-[1.45rem] leading-[1.2]">
-                        Chat Test
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Single conversation
-                      </p>
-                    </div>
+                <div className="flex min-h-full flex-1 flex-col">
+                  <div className="flex items-center justify-between gap-3 p-6">
+                    <h2 className="font-heading text-[1.45rem] leading-[1.2]">
+                      Playground
+                    </h2>
                     <div className="flex flex-wrap gap-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger
@@ -619,8 +619,6 @@ export default function Home() {
                       </Button>
                     </div>
                   </div>
-
-                  <Separator />
 
                   <div className="relative flex min-h-0 flex-1 flex-col pt-[18px]">
                     <ScrollArea className="min-h-0 flex-1 p-0">

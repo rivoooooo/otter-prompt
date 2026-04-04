@@ -1,6 +1,5 @@
-import { useEffect, useState, type KeyboardEvent } from "react"
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react"
 import {
-  ChevronDownIcon,
   ChevronRightIcon,
   EllipsisIcon,
   FileIcon,
@@ -12,7 +11,13 @@ import {
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react"
+import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@workspace/ui/components/collapsible"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +27,18 @@ import {
 } from "@workspace/ui/components/dropdown-menu"
 import { Input } from "@workspace/ui/components/input"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
+import {
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+} from "@workspace/ui/components/sidebar"
 import {
   Tooltip,
   TooltipContent,
@@ -305,7 +322,117 @@ export function ProjectFileExplorer({
     }
   }
 
-  function renderDraftRow(parentPath: string, level: number) {
+  function setPathExpanded(path: string, isExpanded: boolean) {
+    setExpandedPaths((current) => ({
+      ...current,
+      [path]: isExpanded,
+    }))
+  }
+
+  function renderActionMenu(node: TreeNode, canDeleteOrRename: boolean) {
+    const canCreateChildren = node.type === "directory"
+
+    if (!canCreateChildren && !canDeleteOrRename) {
+      return null
+    }
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <SidebarMenuAction
+              showOnHover
+              aria-label={`${node.name} actions`}
+            />
+          }
+        >
+          <EllipsisIcon />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44 min-w-44">
+          <DropdownMenuGroup>
+            {canCreateChildren ? (
+              <>
+                <DropdownMenuItem onClick={() => beginCreate(node.path, "new-file")}>
+                  <PlusIcon />
+                  New File
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => beginCreate(node.path, "new-folder")}
+                >
+                  <FolderOpenIcon />
+                  New Folder
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {canDeleteOrRename ? (
+              <DropdownMenuItem onClick={() => beginRename(node)}>
+                <PencilIcon />
+                Rename
+              </DropdownMenuItem>
+            ) : null}
+            {canDeleteOrRename ? (
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => void removePath(node.path)}
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
+  function renderEditableItem(
+    parentPath: string,
+    icon: ReactNode,
+    value: string,
+    placeholder: string,
+    onChange: (nextValue: string) => void,
+    autoFocus = false
+  ) {
+    return (
+      <SidebarMenuItem key={`draft-${parentPath}`}>
+        <SidebarMenuButton
+          render={<div />}
+          className="h-auto cursor-default items-start gap-2 rounded-[18px] bg-accent/40 px-3 py-2 hover:bg-accent/40 active:bg-accent/40"
+        >
+          <span className="flex-none text-muted-foreground">{icon}</span>
+          <Input
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            onKeyDown={handleDraftKeyDown}
+            placeholder={placeholder}
+            className="h-8 min-w-0 flex-1 bg-background/80"
+            disabled={submitting}
+            autoFocus={autoFocus}
+          />
+          <div className="flex flex-none items-center gap-1">
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => void submitDraftAction()}
+              disabled={!value.trim() || submitting}
+            >
+              Save
+            </Button>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={cancelDraftAction}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+          </div>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
+  }
+
+  function renderDraftRow(parentPath: string) {
     if (
       !draftAction ||
       draftAction.type === "rename" ||
@@ -314,32 +441,63 @@ export function ProjectFileExplorer({
       return null
     }
 
+    return renderEditableItem(
+      parentPath,
+      draftAction.type === "new-folder" ? <FolderOpenIcon /> : <FileIcon />,
+      draftAction.value,
+      draftAction.type === "new-folder" ? "folder-name" : "file-name.ts",
+      (nextValue) =>
+        setDraftAction((current) =>
+          current && current.parentPath === parentPath
+            ? { ...current, value: nextValue }
+            : current
+        ),
+      true
+    )
+  }
+
+  function renderChildren(node: TreeNode) {
+    if (!expandedPaths[node.path]) {
+      return null
+    }
+
     return (
-      <div
-        className="flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] bg-accent/40 px-1.5 py-1 transition-[background-color,color] duration-120"
-        style={{ paddingLeft: `${level * 14}px` }}
+      <SidebarMenuSub>
+        {renderDraftRow(node.path)}
+        {(node.children || []).map((child) => renderNode(child))}
+      </SidebarMenuSub>
+    )
+  }
+
+  function renderRenameRow(node: TreeNode) {
+    const isDirectory = node.type === "directory"
+
+    return (
+      <SidebarMenuButton
+        render={<div />}
+        className="h-auto cursor-default items-start gap-2 rounded-[18px] bg-accent/40 px-3 py-2 hover:bg-accent/40 active:bg-accent/40"
       >
-        <span className="inline-flex w-6 flex-none items-center justify-center text-muted-foreground" />
-        <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
-          {draftAction.type === "new-folder" ? (
-            <FolderOpenIcon />
+        <span className="flex-none text-muted-foreground">
+          {isDirectory ? (
+            expandedPaths[node.path] ? (
+              <FolderOpenIcon />
+            ) : (
+              <FolderIcon />
+            )
           ) : (
             <FileIcon />
           )}
         </span>
         <Input
-          value={draftAction.value}
+          value={draftAction?.type === "rename" ? draftAction.value : ""}
           onChange={(event) =>
             setDraftAction((current) =>
-              current && current.parentPath === parentPath
+              current?.type === "rename" && current.path === node.path
                 ? { ...current, value: event.target.value }
                 : current
             )
           }
           onKeyDown={handleDraftKeyDown}
-          placeholder={
-            draftAction.type === "new-folder" ? "folder-name" : "file-name.ts"
-          }
           className="h-8 min-w-0 flex-1 bg-background/80"
           disabled={submitting}
           autoFocus
@@ -349,7 +507,7 @@ export function ProjectFileExplorer({
             variant="ghost"
             size="xs"
             onClick={() => void submitDraftAction()}
-            disabled={!draftAction.value.trim() || submitting}
+            disabled={!draftAction?.value.trim() || submitting}
           >
             Save
           </Button>
@@ -362,313 +520,175 @@ export function ProjectFileExplorer({
             Cancel
           </Button>
         </div>
-      </div>
+      </SidebarMenuButton>
     )
   }
 
-  function renderNode(node: TreeNode, level: number) {
+  function renderNode(node: TreeNode): ReactNode {
     const isDirectory = node.type === "directory"
     const isExpanded = Boolean(expandedPaths[node.path])
     const isRenaming =
       draftAction?.type === "rename" && draftAction.path === node.path
-    const renameValue = isRenaming ? draftAction.value : ""
     const isActive = activeFile === node.path
-    const canDeleteOrRename = node.path !== tree?.path
+    const isRoot = node.path === tree?.path
+    const buttonClassName = cn(
+      "min-h-[2.5rem] rounded-[18px] px-[12px] text-[0.95rem] text-foreground hover:bg-accent/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-foreground",
+      isRoot && "font-heading text-base leading-[1.2]"
+    )
+
+    if (isRenaming) {
+      return (
+        <SidebarMenuItem key={node.path}>
+          {renderRenameRow(node)}
+          {isDirectory ? renderChildren(node) : null}
+        </SidebarMenuItem>
+      )
+    }
+
+    if (isDirectory) {
+      return (
+        <SidebarMenuItem key={node.path}>
+          <Collapsible
+            open={isExpanded}
+            onOpenChange={(open) => setPathExpanded(node.path, open)}
+            className="group/collapsible"
+          >
+            <CollapsibleTrigger
+              render={
+                <SidebarMenuButton
+                  isActive={isActive}
+                  className={buttonClassName}
+                  title={node.path}
+                />
+              }
+            >
+              <ChevronRightIcon
+                className={cn("transition-transform", isExpanded && "rotate-90")}
+              />
+              {isExpanded ? <FolderOpenIcon /> : <FolderIcon />}
+              <span>{node.name}</span>
+            </CollapsibleTrigger>
+            {!isRoot ? renderActionMenu(node, true) : null}
+            <CollapsibleContent>{renderChildren(node)}</CollapsibleContent>
+          </Collapsible>
+        </SidebarMenuItem>
+      )
+    }
 
     return (
-      <div key={node.path} className="flex flex-col gap-0.5">
-        <div className="min-w-0">
-          <div
-            className={cn(
-              "group flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] px-1.5 py-1 transition-[background-color,color] duration-120 focus-within:bg-accent/60 hover:bg-accent/60",
-              isActive &&
-                "bg-primary/10 text-foreground ring-1 ring-primary/20"
-            )}
-            style={{ paddingLeft: `${level * 14}px` }}
-          >
-            {isDirectory ? (
-              <button
-                type="button"
-                className="inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-muted-foreground hover:bg-accent/70 hover:text-foreground"
-                onClick={() =>
-                  setExpandedPaths((current) => ({
-                    ...current,
-                    [node.path]: !current[node.path],
-                  }))
-                }
-                aria-label={isExpanded ? "Collapse folder" : "Expand folder"}
-              >
-                {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-              </button>
-            ) : (
-              <span className="inline-flex w-6 flex-none items-center justify-center text-muted-foreground" />
-            )}
-
-            <button
-              type="button"
-              className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              onClick={() =>
-                isDirectory
-                  ? setExpandedPaths((current) => ({
-                      ...current,
-                      [node.path]: !current[node.path],
-                    }))
-                  : void onOpenFile(node.path).catch((cause) =>
-                      onError(String(cause))
-                    )
-              }
-              title={node.path}
-            >
-              <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
-                {isDirectory ? (
-                  isExpanded ? (
-                    <FolderOpenIcon />
-                  ) : (
-                    <FolderIcon />
-                  )
-                ) : (
-                  <FileIcon />
-                )}
-              </span>
-
-              {isRenaming ? (
-                <Input
-                  value={renameValue}
-                  onChange={(event) =>
-                    setDraftAction((current) =>
-                      current?.type === "rename" && current.path === node.path
-                        ? { ...current, value: event.target.value }
-                        : current
-                    )
-                  }
-                  onKeyDown={handleDraftKeyDown}
-                  className="h-8 min-w-0 flex-1 bg-background/80"
-                  disabled={submitting}
-                  autoFocus
-                />
-              ) : (
-                <span className="truncate">{node.name}</span>
-              )}
-            </button>
-
-            {isRenaming ? (
-              <div className="flex flex-none items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => void submitDraftAction()}
-                  disabled={!renameValue.trim() || submitting}
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="xs"
-                  onClick={cancelDraftAction}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  "flex flex-none items-center transition-opacity duration-120",
-                  isActive
-                    ? "opacity-100"
-                    : "opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                )}
-              >
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        className="text-muted-foreground"
-                        aria-label={`${node.name} actions`}
-                      />
-                    }
-                  >
-                    <EllipsisIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-44 min-w-44">
-                    <DropdownMenuGroup>
-                      {isDirectory ? (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => beginCreate(node.path, "new-file")}
-                          >
-                            <PlusIcon />
-                            New File
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => beginCreate(node.path, "new-folder")}
-                          >
-                            <FolderOpenIcon />
-                            New Folder
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
-                      {canDeleteOrRename ? (
-                        <DropdownMenuItem onClick={() => beginRename(node)}>
-                          <PencilIcon />
-                          Rename
-                        </DropdownMenuItem>
-                      ) : null}
-                      {canDeleteOrRename ? (
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => void removePath(node.path)}
-                        >
-                          <Trash2Icon />
-                          Delete
-                        </DropdownMenuItem>
-                      ) : null}
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {isDirectory && isExpanded ? (
-          <div className="flex flex-col gap-0.5">
-            {renderDraftRow(node.path, level + 1)}
-            {(node.children || []).map((child) => renderNode(child, level + 1))}
-          </div>
-        ) : null}
-      </div>
+      <SidebarMenuItem key={node.path}>
+        <SidebarMenuButton
+          isActive={isActive}
+          className={buttonClassName}
+          onClick={() => void onOpenFile(node.path).catch((cause) => onError(String(cause)))}
+          title={node.path}
+        >
+          <FileIcon />
+          <span>{node.name}</span>
+        </SidebarMenuButton>
+        {renderActionMenu(node, true)}
+      </SidebarMenuItem>
     )
   }
 
   return (
     <TooltipProvider delay={120}>
-      <div className="flex min-h-full flex-col p-4 lg:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs tracking-[0.12px] text-muted-foreground">
-              Files
-            </p>
-            <h2 className="font-heading text-[1.45rem] leading-[1.2]">
-              Project Explorer
-            </h2>
-            <p className="mt-2.5 font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere] text-muted-foreground">
-              {projectPath}
-            </p>
+      <div className="flex min-h-full min-w-0 flex-col overflow-hidden">
+        <SidebarHeader className="gap-3 p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading text-[1.45rem] leading-[1.2]">
+                Project Explorer
+              </h2>
+            </div>
+            <div className="flex flex-none flex-wrap gap-2">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="New file"
+                      onClick={() => tree && beginCreate(tree.path, "new-file")}
+                      disabled={!tree || submitting}
+                    />
+                  }
+                >
+                  <PlusIcon />
+                </TooltipTrigger>
+                <TooltipContent>New File</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="New folder"
+                      onClick={() => tree && beginCreate(tree.path, "new-folder")}
+                      disabled={!tree || submitting}
+                    />
+                  }
+                >
+                  <FolderOpenIcon />
+                </TooltipTrigger>
+                <TooltipContent>New Folder</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Refresh files"
+                      onClick={() =>
+                        void onRefresh().catch((cause) => onError(String(cause)))
+                      }
+                      disabled={!tree || submitting}
+                    />
+                  }
+                >
+                  <RefreshCwIcon />
+                </TooltipTrigger>
+                <TooltipContent>Refresh</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="New file"
-                    onClick={() => tree && beginCreate(tree.path, "new-file")}
-                    disabled={!tree || submitting}
-                  />
-                }
-              >
-                <PlusIcon />
-              </TooltipTrigger>
-              <TooltipContent>New File</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="New folder"
-                    onClick={() => tree && beginCreate(tree.path, "new-folder")}
-                    disabled={!tree || submitting}
-                  />
-                }
-              >
-                <FolderOpenIcon />
-              </TooltipTrigger>
-              <TooltipContent>New Folder</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Refresh files"
-                    onClick={() =>
-                      void onRefresh().catch((cause) => onError(String(cause)))
-                    }
-                    disabled={!tree || submitting}
-                  />
-                }
-              >
-                <RefreshCwIcon />
-              </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
+        </SidebarHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 border-t border-border/90 pt-[18px]">
-          <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
-              {projectName}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
-              {tree?.children?.length ?? 0} top-level items
-            </span>
-          </div>
-
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-border/90 pt-[18px]">
           {!tree ? (
             <div className="flex min-h-40 flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
               <LoaderCircleIcon className="animate-spin" />
               <p>Loading project tree...</p>
             </div>
           ) : (
-            <ScrollArea className="min-h-0 flex-1">
-              <div className="flex flex-col gap-0.5 pr-[14px] pb-5">
-                <div className="mb-1">
-                  <button
-                    type="button"
-                    className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-2.5 py-1 font-heading text-base leading-[1.2] text-foreground hover:bg-accent/70"
-                    onClick={() =>
-                      setExpandedPaths((current) => ({
-                        ...current,
-                        [tree.path]: !current[tree.path],
-                      }))
-                    }
-                    title={tree.path}
-                  >
-                    <span className="inline-flex flex-none items-center justify-center text-muted-foreground">
-                      {expandedPaths[tree.path] ? (
-                        <FolderOpenIcon />
-                      ) : (
-                        <FolderIcon />
-                      )}
-                    </span>
-                    <span>{tree.name}</span>
-                  </button>
-                </div>
+            <ScrollArea className="min-h-0 min-w-0 flex-1">
+              <SidebarContent className="min-h-full min-w-0 gap-3 overflow-visible pr-[14px] pb-5">
+                <SidebarGroup className="p-0">
+                  <SidebarGroupLabel className="sr-only">Files</SidebarGroupLabel>
+                  <SidebarGroupContent className="flex flex-col gap-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="rounded-full">
+                        {projectName}
+                      </Badge>
+                      <Badge variant="outline" className="rounded-full">
+                        {tree.children?.length ?? 0} top-level items
+                      </Badge>
+                    </div>
 
-                {expandedPaths[tree.path] ? renderDraftRow(tree.path, 1) : null}
+                    <SidebarMenu>{renderNode(tree)}</SidebarMenu>
 
-                {expandedPaths[tree.path] &&
-                tree.children &&
-                tree.children.length > 0
-                  ? tree.children.map((child) => renderNode(child, 1))
-                  : null}
-
-                {expandedPaths[tree.path] &&
-                (!tree.children || tree.children.length === 0) &&
-                !draftAction ? (
-                  <div className="flex min-h-32 flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
-                    <p>No files yet. Start with a new file or folder.</p>
-                  </div>
-                ) : null}
-              </div>
+                    {expandedPaths[tree.path] &&
+                    (!tree.children || tree.children.length === 0) &&
+                    !draftAction ? (
+                      <div className="flex min-h-32 flex-1 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+                        <p>No files yet. Start with a new file or folder.</p>
+                      </div>
+                    ) : null}
+                  </SidebarGroupContent>
+                </SidebarGroup>
+              </SidebarContent>
             </ScrollArea>
           )}
         </div>
