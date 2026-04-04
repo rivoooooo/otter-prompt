@@ -52,7 +52,7 @@ function SettingsNavigation({
             <SidebarMenuButton
               render={<NavLink to={item.to} />}
               isActive={active}
-              className="min-h-[2.8rem] rounded-[18px] px-[14px] text-[0.95rem] text-foreground hover:bg-[#f0ece4] hover:text-foreground data-[active=true]:bg-[#e9e4db] data-[active=true]:font-medium data-[active=true]:text-foreground"
+              className="min-h-[2.8rem] rounded-[18px] px-[14px] text-[0.95rem] text-foreground hover:bg-accent/70 hover:text-foreground data-[active=true]:bg-accent data-[active=true]:font-medium data-[active=true]:text-foreground"
               onClick={onNavigate}
             >
               <span>{item.label}</span>

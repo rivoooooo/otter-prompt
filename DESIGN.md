@@ -61,6 +61,22 @@ What makes Claude's design truly distinctive is its warm neutral palette. Every 
 
 - Claude's design is **gradient-free** in the traditional sense. Depth and visual richness come from the interplay of warm surface tones, organic illustrations, and light/dark section alternation. The warm palette itself creates a "gradient" effect as the eye moves through cream → sand → stone → charcoal → black sections.
 
+### Theme Modes
+
+- Support three appearance modes: `light`, `dark`, and `system`
+- Default to `system`, resolving against the OS `prefers-color-scheme` value
+- Persist the selected appearance mode in app settings so the experience survives refresh and restart
+- Apply the theme at the root document level before the UI paints to avoid a flash between light and dark surfaces
+
+### Dark Mode Adaptation
+
+- Dark mode keeps the same Claude identity: warm charcoal surfaces, parchment-tinted text, terracotta accents, and no cool gray substitutions
+- Use **Deep Dark** (`#141413`) as the page canvas and **Dark Surface** (`#30302e`) for cards, popovers, sidebars, and raised containers
+- Primary text stays **Ivory** (`#faf9f5`), secondary text shifts to **Warm Silver** (`#b0aea5`), and muted UI chrome stays within the existing warm neutral range
+- Borders and ring shadows remain subtle and warm: standard dark borders use `#30302e`, while interactive emphasis uses the existing focus blue only for accessibility-critical focus states
+- Hover, selected, and active states should brighten via warm charcoal overlays instead of adding saturation; the terracotta brand color remains reserved for primary CTA moments
+- Light and dark sections may still alternate, but transitions should feel editorial rather than high-contrast or neon
+
 ## 3. Typography Rules
 
 ### Font Family
@@ -201,6 +217,12 @@ _Note: These are custom typefaces. For external implementations, Georgia serves 
 - The page alternates between Parchment light and Near Black dark sections
 - Creates a reading rhythm like chapters in a book
 - Each section feels like a distinct environment
+
+### State Persistence
+
+- Persist workspace desktop sidebar expand/collapse state between sessions
+- Treat mobile navigation sheets as temporary session UI; do not restore them across page loads
+- Settings and other secondary navigation can remain stateless unless a product requirement explicitly calls for persistence
 
 ## 5. Layout Principles
 

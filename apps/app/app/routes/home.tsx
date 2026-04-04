@@ -357,7 +357,7 @@ export default function Home() {
         className="min-h-dvh"
       >
         <ResizablePanel defaultSize={isDesktopLayout ? 58 : 60} minSize={35}>
-          <main className="flex min-h-0 flex-col gap-3 bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] p-4 lg:p-6">
+          <main className="flex min-h-0 flex-col gap-3 bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] p-4 dark:bg-none dark:bg-background lg:p-6">
             <div className="mb-0 flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <p className="text-xs tracking-[0.12px] text-muted-foreground">
@@ -371,7 +371,7 @@ export default function Home() {
                     onKeyDown={handleRenameKeyDown}
                     placeholder="untitled"
                     disabled={!hasActiveFile || renameRunning}
-                    className="h-auto min-w-0 flex-[1_1_100%] border-0 bg-transparent p-0 font-heading text-[clamp(1.8rem,3vw,2.4rem)] leading-[1.05] shadow-none focus-visible:rounded-xl focus-visible:bg-[rgb(255_255_255_/_72%)] focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:min-w-64 lg:flex-[1_1_20rem]"
+                    className="h-auto min-w-0 flex-[1_1_100%] border-0 bg-transparent p-0 font-heading text-[clamp(1.8rem,3vw,2.4rem)] leading-[1.05] shadow-none focus-visible:rounded-xl focus-visible:bg-background/80 focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:min-w-64 lg:flex-[1_1_20rem]"
                   />
                   <Input
                     value={fileExtension}
@@ -380,7 +380,7 @@ export default function Home() {
                     onKeyDown={handleRenameKeyDown}
                     placeholder=".md"
                     disabled={!hasActiveFile || renameRunning}
-                    className="h-auto w-full flex-none border-0 bg-transparent p-0 font-heading text-[clamp(1.35rem,2vw,1.65rem)] leading-[1.1] text-muted-foreground shadow-none focus-visible:rounded-xl focus-visible:bg-[rgb(255_255_255_/_72%)] focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:w-[6.5rem]"
+                    className="h-auto w-full flex-none border-0 bg-transparent p-0 font-heading text-[clamp(1.35rem,2vw,1.65rem)] leading-[1.1] text-muted-foreground shadow-none focus-visible:rounded-xl focus-visible:bg-background/80 focus-visible:px-2.5 focus-visible:py-1.5 focus-visible:ring-0 focus-visible:ring-offset-0 lg:w-[6.5rem]"
                   />
                 </div>
                 <p className="mt-2.5 font-mono text-[0.84rem] leading-[1.6] [overflow-wrap:anywhere] text-muted-foreground">
@@ -419,7 +419,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[rgb(232_230_220_/_92%)] bg-transparent">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-border/90 bg-transparent">
               <div className="min-h-0 flex-1 px-0 pt-[18px]">
                 <Textarea
                   value={fileContent}
@@ -430,34 +430,34 @@ export default function Home() {
                 />
               </div>
 
-              <div className="relative flex-none border-t border-[rgb(232_230_220_/_95%)] bg-[rgb(245_244_237_/_88%)] px-0 pt-3 pb-[14px]">
+              <div className="relative flex-none border-t border-border/90 bg-background/85 px-0 pt-3 pb-[14px]">
                 <div className="scrollbar-thin mt-0 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap">
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     {hasActiveFile
                       ? isFileDirty
                         ? "Status: Unsaved"
                         : "Status: Saved"
                       : "Status: No file"}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Chars: {formatCount(contentStats.characters)}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Words: {formatCount(contentStats.words)}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Tokens: {formatCount(contentStats.tokens)}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Lines: {formatCount(contentStats.lines)}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Last sync: {syncStatus?.local?.lastSyncedAt || "never"}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Cloud rev: {syncStatus?.cloud?.revision ?? 0}
                   </span>
-                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+                  <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
                     Conflicts: {syncStatus?.local?.conflicts?.length || 0}
                   </span>
                 </div>
@@ -469,7 +469,7 @@ export default function Home() {
         <ResizableHandle className="bg-transparent" />
 
         <ResizablePanel defaultSize={isDesktopLayout ? 42 : 40} minSize={25}>
-          <section className="flex min-h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 lg:border-l lg:border-border">
+          <section className="flex min-h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 dark:bg-none dark:bg-background lg:border-l lg:border-border">
             <div
               className={cn(
                 "min-h-0 flex-1 overflow-y-auto overscroll-contain",
@@ -522,7 +522,7 @@ export default function Home() {
                     <ScrollArea className="min-h-0 flex-1 p-0">
                       <div className="flex flex-col gap-3 pr-1 pb-[228px]">
                         {chatMessages.length === 0 && (
-                          <p className="max-w-[28rem] pt-[14px] text-[0.96rem] leading-[1.6] text-[#87867f]">
+                          <p className="max-w-[28rem] pt-[14px] text-[0.96rem] leading-[1.6] text-muted-foreground">
                             Start a conversation to test the model.
                           </p>
                         )}
@@ -530,10 +530,10 @@ export default function Home() {
                           <div
                             key={message.id}
                             className={cn(
-                              "max-w-[min(86%,42rem)] rounded-[24px] px-4 py-[14px] text-[0.96rem] leading-[1.6] shadow-[0_0_0_1px_rgb(240_238_230_/_88%)]",
+                              "max-w-[min(86%,42rem)] rounded-[24px] px-4 py-[14px] text-[0.96rem] leading-[1.6] shadow-[0_0_0_1px_rgb(240_238_230_/_88%)] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]",
                               message.role === "user"
                                 ? "ml-auto bg-[#c96442] text-[#faf9f5] shadow-[0_18px_38px_rgb(201_100_66_/_18%),0_0_0_1px_rgb(201_100_66_/_92%)]"
-                                : "border border-[rgb(232_230_220_/_96%)] bg-[rgb(250_249_245_/_94%)] text-[#3d3d3a]"
+                                : "border border-border/90 bg-card/95 text-foreground"
                             )}
                           >
                             {message.content || (chatRunning ? "..." : "")}
@@ -542,13 +542,13 @@ export default function Home() {
                       </div>
                     </ScrollArea>
 
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-[linear-gradient(180deg,rgb(245_244_237_/_0%)_0%,rgb(245_244_237_/_78%)_34%,rgb(245_244_237_/_96%)_62%,rgb(245_244_237_/_100%)_100%)] pt-7">
-                      <div className="pointer-events-auto flex flex-col gap-3 rounded-[28px] border border-[rgb(232_230_220_/_96%)] bg-[rgb(250_249_245_/_94%)] p-[18px] shadow-[0_0_0_1px_rgb(240_238_230_/_96%)] backdrop-blur-[16px]">
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-[linear-gradient(180deg,rgb(245_244_237_/_0%)_0%,rgb(245_244_237_/_78%)_34%,rgb(245_244_237_/_96%)_62%,rgb(245_244_237_/_100%)_100%)] pt-7 dark:bg-[linear-gradient(180deg,rgb(20_20_19_/_0%)_0%,rgb(20_20_19_/_78%)_34%,rgb(20_20_19_/_96%)_62%,rgb(20_20_19_/_100%)_100%)]">
+                      <div className="pointer-events-auto flex flex-col gap-3 rounded-[28px] border border-border/90 bg-card/95 p-[18px] shadow-[0_0_0_1px_rgb(240_238_230_/_96%)] backdrop-blur-[16px] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]">
                         <Textarea
                           value={chatInput}
                           onChange={(event) => setChatInput(event.target.value)}
                           placeholder="Send message for single chat test"
-                          className="min-h-24 resize-none rounded-none border-0 bg-transparent p-0 text-[0.98rem] leading-[1.6] text-[#141413] shadow-none outline-none placeholder:text-[#87867f] focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                          className="min-h-24 resize-none rounded-none border-0 bg-transparent p-0 text-[0.98rem] leading-[1.6] text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                         />
                         <div className="flex justify-end">
                           <Button
@@ -583,7 +583,7 @@ export default function Home() {
             </div>
 
             <TooltipProvider delay={120}>
-              <div className="flex min-h-[52px] flex-none items-center gap-3 border-t border-[rgb(232_230_220_/_95%)] bg-transparent px-[18px] py-2.5">
+              <div className="flex min-h-[52px] flex-none items-center gap-3 border-t border-border/90 bg-transparent px-[18px] py-2.5">
                 <div className="min-w-0 flex-1">
                   <span className="text-[0.72rem] tracking-[0.12px] text-muted-foreground uppercase">
                     {rightPanelView === "chat" ? "Chat" : "Files"}
@@ -600,7 +600,7 @@ export default function Home() {
                           className={cn(
                             "text-muted-foreground",
                             rightPanelView === "chat" &&
-                              "bg-[rgb(255_255_255_/_72%)] text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)]"
+                              "bg-background/80 text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]"
                           )}
                           onClick={() => setRightPanelView("chat")}
                         />
@@ -620,7 +620,7 @@ export default function Home() {
                           className={cn(
                             "text-muted-foreground",
                             rightPanelView === "files" &&
-                              "bg-[rgb(255_255_255_/_72%)] text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)]"
+                              "bg-background/80 text-foreground shadow-[0_0_0_1px_rgb(209_207_197_/_88%)] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]"
                           )}
                           onClick={() => setRightPanelView("files")}
                         />
@@ -638,11 +638,11 @@ export default function Home() {
       </ResizablePanelGroup>
 
       <Dialog open={clusterOpen} onOpenChange={setClusterOpen}>
-        <DialogContent className="max-w-[95vw] overflow-hidden border-[#30302e] bg-[#141413] p-0 text-[#faf9f5]">
+        <DialogContent className="max-w-[95vw] overflow-hidden border-border bg-background p-0 text-foreground">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle>Cluster Test</DialogTitle>
           </DialogHeader>
-          <div className="h-[80svh] border-t border-[#30302e] px-6 py-5">
+          <div className="h-[80svh] border-t border-border px-6 py-5">
             <ClusterChat
               systemPrompt={systemPrompt}
               apiKey={effectiveProvider.apiKey}

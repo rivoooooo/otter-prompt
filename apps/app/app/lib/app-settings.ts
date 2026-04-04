@@ -21,6 +21,10 @@ const ALLOW_DUPLICATE_LOCAL_PATH_KEY =
 
 export type ClusterOpenMode = "dialog" | "page"
 export type TokenCounterPreset = "chatgpt" | "claude"
+export type ThemeMode = "light" | "dark" | "system"
+
+export const APP_SETTINGS_STORAGE_KEY = SETTINGS_KEY
+export const APP_SETTINGS_UPDATED_EVENT = "otter:settings-updated"
 
 export type ModelSettings = {
   id: string
@@ -42,6 +46,7 @@ export type GeneralSettings = {
   clusterOpenMode: ClusterOpenMode
   allowDuplicateLocalPathAsNewProject: boolean
   tokenCounterPreset: TokenCounterPreset
+  themeMode: ThemeMode
 }
 
 export type AppSettings = {
@@ -55,6 +60,7 @@ export const DEFAULT_GENERAL_SETTINGS: GeneralSettings = {
   clusterOpenMode: "dialog",
   allowDuplicateLocalPathAsNewProject: false,
   tokenCounterPreset: "chatgpt",
+  themeMode: "system",
 }
 
 function cloneModel(model: ModelSettings): ModelSettings {
@@ -188,6 +194,11 @@ function normalizeSettings(candidate: Partial<AppSettings> | null | undefined) {
         candidate?.general?.tokenCounterPreset === "claude"
           ? "claude"
           : defaults.general.tokenCounterPreset,
+      themeMode:
+        candidate?.general?.themeMode === "light" ||
+        candidate?.general?.themeMode === "dark"
+          ? candidate.general.themeMode
+          : defaults.general.themeMode,
     },
     providers,
   } satisfies AppSettings
@@ -210,6 +221,7 @@ export function migrateLegacySettings() {
     DEFAULT_GENERAL_SETTINGS.allowDuplicateLocalPathAsNewProject
   )
   next.general.tokenCounterPreset = DEFAULT_GENERAL_SETTINGS.tokenCounterPreset
+  next.general.themeMode = DEFAULT_GENERAL_SETTINGS.themeMode
   next.general.serviceBaseUrl = getServiceBaseUrl()
   next.providers[legacyProviderId] = {
     ...providerSettings,
@@ -315,4 +327,10 @@ export function saveAppSettings(next: AppSettings) {
   } else {
     resetServiceBaseUrl()
   }
+
+  window.dispatchEvent(
+    new CustomEvent(APP_SETTINGS_UPDATED_EVENT, {
+      detail: normalized,
+    })
+  )
 }

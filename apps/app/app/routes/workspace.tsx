@@ -27,7 +27,6 @@ import {
   SidebarInset,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
 import { DirectoryBrowser } from "../components/directory-browser"
@@ -50,6 +49,21 @@ type SyncStatus = {
   cloud?: {
     revision?: number
   }
+}
+
+const WORKSPACE_SIDEBAR_STORAGE_KEY = "otter.workspace.sidebar.open"
+
+function getStoredWorkspaceSidebarOpen() {
+  if (typeof window === "undefined") {
+    return true
+  }
+
+  const raw = window.localStorage.getItem(WORKSPACE_SIDEBAR_STORAGE_KEY)
+  if (raw === null) {
+    return true
+  }
+
+  return raw === "true"
 }
 
 export type WorkspaceShellContext = {
@@ -146,6 +160,9 @@ export default function WorkspaceRoute() {
   const [savedFileContent, setSavedFileContent] = useState("")
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [error, setError] = useState("")
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    getStoredWorkspaceSidebarOpen()
+  )
 
   const hasActiveFile = useMemo(() => Boolean(activeFile), [activeFile])
   const isFileDirty = useMemo(
@@ -247,6 +264,13 @@ export default function WorkspaceRoute() {
       .then((body) => setSyncStatus(body))
       .catch(() => setSyncStatus(null))
   }, [activeProject?.id])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      WORKSPACE_SIDEBAR_STORAGE_KEY,
+      String(sidebarOpen)
+    )
+  }, [sidebarOpen])
 
   async function saveActiveFile() {
     if (!activeFile) {
@@ -368,7 +392,15 @@ export default function WorkspaceRoute() {
   }
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+      style={
+        {
+          "--sidebar": "var(--background)",
+        } as React.CSSProperties
+      }
+    >
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
@@ -378,8 +410,6 @@ export default function WorkspaceRoute() {
             <SidebarTrigger />
           </div>
         </SidebarHeader>
-
-        <SidebarSeparator />
 
         <SidebarContent>
           <SidebarGroup className="group-data-[collapsible=icon]:hidden">

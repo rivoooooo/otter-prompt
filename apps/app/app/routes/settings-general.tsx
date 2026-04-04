@@ -61,14 +61,14 @@ export default function SettingsGeneralRoute() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
               <p className="text-[0.98rem] font-medium text-foreground">
                 Effective Runtime
               </p>
             </div>
             <div className="min-w-0 lg:flex-1">
-              <div className="flex flex-col gap-1 rounded-2xl bg-[#efe9df] px-[14px] py-3">
+              <div className="flex flex-col gap-1 rounded-2xl bg-secondary/70 px-[14px] py-3">
                 <p className="text-[0.96rem] font-medium text-foreground">
                   {effective.catalog?.label || effective.providerId}
                 </p>
@@ -78,6 +78,78 @@ export default function SettingsGeneralRoute() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <Separator />
+
+      <section className="flex flex-col gap-[18px] py-[18px]">
+        <h3 className="font-heading text-[1.12rem] leading-[1.2] text-foreground">
+          Appearance
+        </h3>
+        <div className="flex flex-col gap-[14px] py-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-[0.98rem] font-medium text-foreground">
+              Theme
+            </p>
+            <p className="text-[0.86rem] leading-[1.5] text-muted-foreground">
+              Choose how Otter matches Claude&apos;s warm light and dark
+              surfaces.
+            </p>
+          </div>
+          <fieldset className="flex flex-col gap-2.5">
+            <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
+              <input
+                type="radio"
+                name="theme-mode"
+                checked={draft.general.themeMode === "system"}
+                onChange={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    general: {
+                      ...current.general,
+                      themeMode: "system",
+                    },
+                  }))
+                }
+              />
+              <span>Follow system</span>
+            </label>
+            <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
+              <input
+                type="radio"
+                name="theme-mode"
+                checked={draft.general.themeMode === "light"}
+                onChange={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    general: {
+                      ...current.general,
+                      themeMode: "light",
+                    },
+                  }))
+                }
+              />
+              <span>Light</span>
+            </label>
+            <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
+              <input
+                type="radio"
+                name="theme-mode"
+                checked={draft.general.themeMode === "dark"}
+                onChange={() =>
+                  setDraft((current) => ({
+                    ...current,
+                    general: {
+                      ...current.general,
+                      themeMode: "dark",
+                    },
+                  }))
+                }
+              />
+              <span>Dark</span>
+            </label>
+          </fieldset>
         </div>
       </section>
 
@@ -106,8 +178,8 @@ export default function SettingsGeneralRoute() {
                 key={entry.id}
                 type="button"
                 className={cn(
-                  "flex w-full min-w-0 flex-col gap-1 rounded-[18px] border-0 bg-transparent px-4 py-[14px] text-left transition-colors duration-150 hover:bg-[#f1ede6]",
-                  isActive && "bg-[#e9e4db]"
+                  "flex w-full min-w-0 flex-col gap-1 rounded-[18px] border-0 bg-transparent px-4 py-[14px] text-left transition-colors duration-150 hover:bg-accent/70",
+                  isActive && "bg-accent"
                 )}
                 onClick={() =>
                   setDraft((current) => ({
@@ -179,7 +251,7 @@ export default function SettingsGeneralRoute() {
             </fieldset>
           </div>
 
-          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4">
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4">
             <div className="flex min-w-0 flex-col gap-1">
               <p className="text-[0.98rem] font-medium text-foreground">
                 Token Counter
@@ -226,7 +298,7 @@ export default function SettingsGeneralRoute() {
             </fieldset>
           </div>
 
-          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
               <p className="text-[0.98rem] font-medium text-foreground">
                 Project Import Behavior

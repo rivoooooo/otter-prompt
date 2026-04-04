@@ -146,7 +146,7 @@ export default function SettingsProviderDetailRoute() {
               </a>
             </div>
           </div>
-          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
               <p className="text-[0.98rem] font-medium text-foreground">Docs</p>
             </div>
@@ -194,7 +194,7 @@ export default function SettingsProviderDetailRoute() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[14px] border-t border-[rgb(232_230_220_/_90%)] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
               <p className="text-[0.98rem] font-medium text-foreground">
                 API Key
@@ -243,7 +243,7 @@ export default function SettingsProviderDetailRoute() {
         </div>
 
         {provider.models.length === 0 ? (
-          <div className="flex flex-col gap-1.5 rounded-[18px] bg-[#efe9df] p-4">
+          <div className="flex flex-col gap-1.5 rounded-[18px] bg-secondary/70 p-4">
             <p className="font-medium text-foreground">No models yet</p>
           </div>
         ) : (
@@ -251,7 +251,7 @@ export default function SettingsProviderDetailRoute() {
             {provider.models.map((model, index) => (
               <div
                 key={`${model.id}-${index}`}
-                className="flex min-w-0 flex-col gap-[14px] py-[18px] not-first:border-t not-first:border-[rgb(232_230_220_/_90%)]"
+                className="flex min-w-0 flex-col gap-[14px] py-[18px] not-first:border-t not-first:border-border/90"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">

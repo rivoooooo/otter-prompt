@@ -316,7 +316,7 @@ export function ProjectFileExplorer({
 
     return (
       <div
-        className="flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] bg-[rgb(255_255_255_/_44%)] px-1.5 py-1 transition-[background-color,color] duration-120"
+        className="flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] bg-accent/40 px-1.5 py-1 transition-[background-color,color] duration-120"
         style={{ paddingLeft: `${level * 14}px` }}
       >
         <span className="inline-flex w-6 flex-none items-center justify-center text-muted-foreground" />
@@ -340,7 +340,7 @@ export function ProjectFileExplorer({
           placeholder={
             draftAction.type === "new-folder" ? "folder-name" : "file-name.ts"
           }
-          className="h-8 min-w-0 flex-1 bg-[rgb(255_255_255_/_84%)]"
+          className="h-8 min-w-0 flex-1 bg-background/80"
           disabled={submitting}
           autoFocus
         />
@@ -380,16 +380,16 @@ export function ProjectFileExplorer({
         <div className="min-w-0">
           <div
             className={cn(
-              "group flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] px-1.5 py-1 transition-[background-color,color] duration-120 focus-within:bg-[rgb(255_255_255_/_48%)] hover:bg-[rgb(255_255_255_/_48%)]",
+              "group flex min-h-[34px] min-w-0 items-center gap-1.5 rounded-[14px] px-1.5 py-1 transition-[background-color,color] duration-120 focus-within:bg-accent/60 hover:bg-accent/60",
               isActive &&
-                "bg-[rgb(201_100_66_/_12%)] text-foreground shadow-[inset_0_0_0_1px_rgb(201_100_66_/_20%)]"
+                "bg-primary/10 text-foreground ring-1 ring-primary/20"
             )}
             style={{ paddingLeft: `${level * 14}px` }}
           >
             {isDirectory ? (
               <button
                 type="button"
-                className="inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-muted-foreground hover:bg-[rgb(255_255_255_/_56%)] hover:text-foreground"
+                className="inline-flex h-6 w-6 flex-none items-center justify-center rounded-full text-muted-foreground hover:bg-accent/70 hover:text-foreground"
                 onClick={() =>
                   setExpandedPaths((current) => ({
                     ...current,
@@ -442,7 +442,7 @@ export function ProjectFileExplorer({
                     )
                   }
                   onKeyDown={handleDraftKeyDown}
-                  className="h-8 min-w-0 flex-1 bg-[rgb(255_255_255_/_84%)]"
+                  className="h-8 min-w-0 flex-1 bg-background/80"
                   disabled={submitting}
                   autoFocus
                 />
@@ -612,12 +612,12 @@ export function ProjectFileExplorer({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 border-t border-[rgb(232_230_220_/_92%)] pt-[18px]">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 border-t border-border/90 pt-[18px]">
           <div className="flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
               {projectName}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[#faf9f5] px-2.5 py-0.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs text-muted-foreground">
               {tree?.children?.length ?? 0} top-level items
             </span>
           </div>
@@ -633,7 +633,7 @@ export function ProjectFileExplorer({
                 <div className="mb-1">
                   <button
                     type="button"
-                    className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-2.5 py-1 font-heading text-base leading-[1.2] text-foreground hover:bg-[rgb(255_255_255_/_52%)]"
+                    className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-2.5 py-1 font-heading text-base leading-[1.2] text-foreground hover:bg-accent/70"
                     onClick={() =>
                       setExpandedPaths((current) => ({
                         ...current,

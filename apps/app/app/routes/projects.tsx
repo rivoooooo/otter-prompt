@@ -67,7 +67,7 @@ export default function ProjectsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-[1320px] flex-col gap-[18px] p-4 md:p-6">
-      <section className="flex flex-wrap items-start justify-between gap-[18px] rounded-2xl border border-border bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_12%),transparent_38%),linear-gradient(135deg,#faf9f5_0%,#f3efe5_100%)] p-5 shadow-[0_0_0_1px_#f0eee6,0_4px_24px_rgb(0_0_0_/_5%)] sm:p-6">
+      <section className="flex flex-wrap items-start justify-between gap-[18px] rounded-2xl border border-border bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_12%),transparent_38%),linear-gradient(135deg,#faf9f5_0%,#f3efe5_100%)] p-5 shadow-[0_0_0_1px_#f0eee6,0_4px_24px_rgb(0_0_0_/_5%)] dark:bg-none dark:bg-card dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%),0_10px_30px_rgb(0_0_0_/_22%)] sm:p-6">
         <div className="flex max-w-[42rem] min-w-0 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <p className="text-[0.9375rem] text-muted-foreground">Projects</p>
@@ -153,14 +153,14 @@ export default function ProjectsPage() {
       </section>
 
       {error ? (
-        <div className="rounded-2xl border border-[rgb(181_51_51_/_14%)] bg-[rgb(181_51_51_/_8%)] px-[14px] py-3 text-[0.92rem] text-[#8d2f2f]">
+        <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-[14px] py-3 text-[0.92rem] text-destructive">
           {error}
         </div>
       ) : null}
 
       <section className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
         <Card
-          className="sticky top-6 bg-[linear-gradient(180deg,#f7f4ed_0%,#efe9df_100%)] max-lg:static"
+          className="sticky top-6 bg-[linear-gradient(180deg,#f7f4ed_0%,#efe9df_100%)] dark:bg-none dark:bg-card max-lg:static"
           size="sm"
         >
           <CardHeader>
@@ -179,7 +179,7 @@ export default function ProjectsPage() {
                 Known projects
               </span>
             </div>
-            <div className="flex items-start gap-2.5 rounded-2xl bg-[rgb(255_255_255_/_72%)] px-[14px] py-3 text-[0.88rem] leading-[1.5] text-muted-foreground">
+            <div className="flex items-start gap-2.5 rounded-2xl bg-background/80 px-[14px] py-3 text-[0.88rem] leading-[1.5] text-muted-foreground">
               <SparklesIcon />
               <span>
                 Detail pages now live under <code>/project/:id</code>.
@@ -223,7 +223,7 @@ export default function ProjectsPage() {
             projects.map((project, index) => (
               <Card
                 key={project.id}
-                className="bg-[linear-gradient(180deg,rgb(250_249_245_/_92%)_0%,rgb(255_255_255_/_98%)_100%)]"
+                className="bg-[linear-gradient(180deg,rgb(250_249_245_/_92%)_0%,rgb(255_255_255_/_98%)_100%)] dark:bg-none dark:bg-card"
               >
                 <CardHeader className="gap-3">
                   <div className="min-w-0">
