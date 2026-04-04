@@ -7,6 +7,9 @@
     "dev": "turbo dev",
     "dev:app": "turbo dev --filter @otter-prompt/app",
     "dev:web": "turbo dev --filter @otter-prompt/web",
+    "dev:core": "pnpm --filter @otter-prompt/core-server dev",
+    "dev:cloud": "pnpm --filter @otter-prompt/cloud-server dev",
+    "dev:cli": "pnpm --filter @otter-prompt/cli dev:web",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "dev:desktop": "cd apps/desktop && wails3 dev"

@@ -1,0 +1,16 @@
+{
+  "name": "@otter-prompt/cli",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "otter": "src/cli.mjs"
+  },
+  "scripts": {
+    "dev": "node src/cli.mjs",
+    "dev:web": "node src/cli.mjs web"
+  },
+  "dependencies": {
+    "@otter-prompt/core-server": "workspace:*"
+  }
+}

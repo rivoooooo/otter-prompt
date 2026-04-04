@@ -1,17 +1,69 @@
 ---
-
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Otter Prompt</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f4f5;
+        --card: #ffffff;
+        --text: #09090b;
+        --muted: #71717a;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+        background: radial-gradient(circle at top right, #e4e4e7, var(--bg));
+        color: var(--text);
+      }
+      main {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 72px 24px;
+      }
+      section {
+        background: var(--card);
+        border: 1px solid #d4d4d8;
+        border-radius: 16px;
+        padding: 28px;
+      }
+      h1 {
+        font-size: 42px;
+        margin: 0 0 10px;
+      }
+      p {
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      a {
+        display: inline-block;
+        margin-top: 12px;
+        color: white;
+        background: #18181b;
+        text-decoration: none;
+        padding: 10px 14px;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section>
+        <h1>Otter Prompt</h1>
+        <p>
+          Prompt workspace for projects, file-based editing, and AI test chats.
+          Use the app to run local Node core mode, desktop shell mode, or cloud
+          collaboration mode.
+        </p>
+        <a href="http://localhost:5173">Open App</a>
+      </section>
+    </main>
+  </body>
 </html>

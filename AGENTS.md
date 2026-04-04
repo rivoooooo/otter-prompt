@@ -5,7 +5,11 @@ This repo is a `pnpm` + Turborepo monorepo.
 
 - `apps/app`: React Router app (`app/routes`, `app/root.tsx`).
 - `apps/web`: Astro site (`src/pages`).
-- `apps/desktop`: Wails v3 Go backend (`main.go`, `greetservice.go`) with frontend in `apps/desktop/frontend` (React + Vite).
+- `apps/desktop`: Wails v3 shell backend (`main.go`, `bridgeservice.go`) with frontend in `apps/desktop/frontend` (React + Vite).
+- `apps/cli`: Node CLI entry (`otter web`, `otter init`).
+- `packages/core-server`: Node core runtime (file I/O, AI test API, REST endpoints).
+- `packages/cloud-server`: Cloud service layer (auth/team wrappers around core runtime).
+- `packages/desktop-bridge`: Shared desktop bridge helpers for app integrations.
 - `packages/ui`: Shared UI package (`src/components`, `src/lib`, `src/styles`).
 - Root config: `turbo.json`, `pnpm-workspace.yaml`, `tsconfig.json`, Prettier config.
 
@@ -52,3 +56,8 @@ PRs should include:
 - Linked issue/ticket when applicable.
 - Screenshots or short recordings for UI changes (`apps/app`, `apps/web`, `apps/desktop/frontend`).
 - Notes about verification steps run locally (for example, `pnpm typecheck && pnpm build`).
+
+## Documentation Memory
+- Planning and architecture discussions must be recorded under `.docs/`.
+- Session notes go to `.docs/sessions/` with date-prefixed filenames.
+- Durable architecture decisions go to `.docs/decisions/` as ADR files.

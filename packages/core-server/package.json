@@ -1,0 +1,17 @@
+{
+  "name": "@otter-prompt/core-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/server.mjs",
+  "exports": {
+    "./server": "./src/server.mjs"
+  },
+  "scripts": {
+    "dev": "node src/server.mjs"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.18",
+    "ai": "^5.0.86"
+  }
+}
