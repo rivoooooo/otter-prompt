@@ -1,5 +1,6 @@
 import {
   getDefaultBaseUrl,
+  getRuntimeServiceBaseUrl,
   getServiceBaseUrl,
   resetServiceBaseUrl,
   setServiceBaseUrl,
@@ -303,6 +304,7 @@ export function saveAppSettings(next: AppSettings) {
     return
   }
 
+  const runtimeServiceBaseUrl = getRuntimeServiceBaseUrl()
   const normalized = normalizeSettings(next)
   const payload: AppSettings = {
     general: {
@@ -322,7 +324,12 @@ export function saveAppSettings(next: AppSettings) {
 
   window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload))
 
-  if (next.general.serviceBaseUrl) {
+  if (
+    runtimeServiceBaseUrl &&
+    next.general.serviceBaseUrl === runtimeServiceBaseUrl
+  ) {
+    resetServiceBaseUrl()
+  } else if (next.general.serviceBaseUrl) {
     setServiceBaseUrl(next.general.serviceBaseUrl)
   } else {
     resetServiceBaseUrl()

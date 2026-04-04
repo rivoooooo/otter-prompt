@@ -1,120 +1,96 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from "react"
+
+import { AppInterface } from "../../../app/app/app-interface"
+import { LocalEndpoint } from "../bindings/changeme/bridgeservice"
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [endpoint, setEndpoint] = useState("")
+  const [error, setError] = useState("")
+  const [path, setPath] = useState("/")
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+  useEffect(() => {
+    let cancelled = false
+
+    LocalEndpoint()
+      .then((nextEndpoint) => {
+        if (!cancelled) {
+          setEndpoint(nextEndpoint)
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setError(String(cause))
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  if (error) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-background p-6 text-foreground">
+        <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Desktop Runtime Error</p>
+          <h1 className="mt-2 font-heading text-2xl">Failed to start app shell</h1>
+          <p className="mt-3 break-words text-sm text-muted-foreground">
+            {error}
           </p>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </main>
+    )
+  }
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+  if (!endpoint) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-background p-6 text-foreground">
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Connecting to local runtime</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Preparing the embedded app interface.
+          </p>
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+      </main>
+    )
+  }
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+  return (
+    <div className="flex min-h-svh flex-col bg-[color:color-mix(in_oklab,var(--background)_92%,white)] text-foreground">
+      <header className="sticky top-0 z-50 border-b border-border/80 bg-background/88 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-3">
+          <div>
+            <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted-foreground">
+              Desktop
+            </p>
+            <p className="font-heading text-lg leading-none">Otter Prompt</p>
+          </div>
+          <div className="ml-auto flex items-center gap-3 text-right">
+            <div>
+              <p className="text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
+                Route
+              </p>
+              <p className="font-mono text-xs text-foreground">{path}</p>
+            </div>
+            <div className="hidden max-w-64 md:block">
+              <p className="text-[0.68rem] uppercase tracking-[0.18em] text-muted-foreground">
+                Local API
+              </p>
+              <p className="truncate font-mono text-xs text-muted-foreground">
+                {endpoint}
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-auto">
+        <AppInterface
+          serviceBaseUrl={endpoint}
+          onNavigate={(nextPath) => setPath(nextPath)}
+        />
+      </div>
+    </div>
   )
 }
 
