@@ -21,6 +21,10 @@ export {
 } from "../../../../packages/core-server/src/storage/fs-api.mjs"
 
 export { streamChat } from "../../../../packages/core-server/src/ai/ai-client.mjs"
+export {
+  resolveProjectSystemPrompt,
+  resolveStoredModelRuntimeConfig,
+} from "../../../../packages/core-server/src/ai/chat-runtime.mjs"
 export { openInEditor } from "../../../../packages/core-server/src/editor.mjs"
 export {
   applySnapshot,

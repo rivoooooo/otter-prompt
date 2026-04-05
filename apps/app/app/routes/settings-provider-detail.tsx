@@ -1,13 +1,15 @@
 import { useMemo } from "react"
-import { Link, useOutletContext, useParams } from "react-router"
+import { Link, useNavigate, useOutletContext, useParams } from "react-router"
 import { ArrowLeftIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { Separator } from "@workspace/ui/components/separator"
 import {
+  createCustomProviderSettings,
   getDefaultProviderSettings,
   getProviderSettings,
   type ModelSettings,
+  type ProviderSettings,
 } from "../lib/app-settings"
 import { getProviderCatalogEntry } from "../lib/provider-catalog"
 import type { SettingsRouteContext } from "../lib/settings-route"
@@ -28,23 +30,31 @@ function buildNewModel(existingCount: number): ModelSettings {
     label: `Custom Model ${index}`,
     temperature: 1,
     contextWindow: 128000,
+    apiStyleOverride: null,
   }
 }
 
+function getProviderMeta(provider: ProviderSettings, runtimeLabel: string) {
+  return [
+    provider.source === "custom" ? "Custom" : "Built-in",
+    runtimeLabel,
+    provider.enabled ? "Enabled" : "Disabled",
+  ].join(" · ")
+}
+
 export default function SettingsProviderDetailRoute() {
+  const navigate = useNavigate()
   const { providerId = "" } = useParams()
   const { draft, saved, setDraft, saveDraft } =
     useOutletContext<SettingsRouteContext>()
   const catalog = getProviderCatalogEntry(providerId)
+  const hasSavedProvider = Boolean(saved.providers[providerId])
 
-  const provider = getProviderSettings(draft, providerId)
-  const savedProvider = getProviderSettings(saved, providerId)
-  const hasProviderChanges = useMemo(
-    () => JSON.stringify(savedProvider) !== JSON.stringify(provider),
-    [savedProvider, provider]
-  )
-
-  if (!catalog) {
+  if (
+    !catalog &&
+    !draft.providers[providerId] &&
+    !saved.providers[providerId]
+  ) {
     return (
       <div className="flex flex-col">
         <header className="flex flex-wrap items-start justify-between gap-3 pb-5">
@@ -63,8 +73,17 @@ export default function SettingsProviderDetailRoute() {
     )
   }
 
+  const provider = getProviderSettings(draft, providerId)
+  const savedProvider = hasSavedProvider
+    ? getProviderSettings(saved, providerId)
+    : null
+  const hasProviderChanges = useMemo(
+    () => JSON.stringify(savedProvider || null) !== JSON.stringify(provider),
+    [savedProvider, provider]
+  )
+
   function updateProvider(
-    updater: (current: typeof provider) => typeof provider
+    updater: (current: ProviderSettings) => ProviderSettings
   ) {
     setDraft((current) => ({
       ...current,
@@ -105,10 +124,49 @@ export default function SettingsProviderDetailRoute() {
     })
   }
 
-  const providerMeta = [
-    catalog.runtimeStatus === "native" ? "Runtime ready" : "Catalog only",
-    provider.enabled ? "Enabled" : "Disabled",
-  ].join(" · ")
+  function removeProvider() {
+    setDraft((current) => {
+      const nextProviders = { ...current.providers }
+      delete nextProviders[providerId]
+      const nextDefaultProviderId =
+        current.general.defaultProviderId === providerId
+          ? Object.keys(nextProviders)[0] || ""
+          : current.general.defaultProviderId
+
+      return {
+        ...current,
+        general: {
+          ...current.general,
+          defaultProviderId: nextDefaultProviderId,
+        },
+        providers: nextProviders,
+      }
+    })
+
+    navigate("/settings/providers")
+  }
+
+  function resetProvider() {
+    setDraft((current) => {
+      const nextProvider =
+        savedProvider ||
+        (provider.source === "custom"
+          ? createCustomProviderSettings(providerId)
+          : getDefaultProviderSettings(providerId))
+
+      return {
+        ...current,
+        providers: {
+          ...current.providers,
+          [providerId]: nextProvider,
+        },
+      }
+    })
+  }
+
+  const runtimeLabel =
+    catalog?.runtimeStatus === "native" ? "Runtime ready" : "Catalog only"
+  const providerMeta = getProviderMeta(provider, runtimeLabel)
 
   return (
     <div className="flex flex-col">
@@ -119,7 +177,7 @@ export default function SettingsProviderDetailRoute() {
         </Button>
         <div>
           <h2 className="font-heading text-[1.45rem] leading-[1.2] text-foreground">
-            {catalog.label}
+            {provider.label}
           </h2>
           <p className="text-[0.9rem] leading-[1.5] text-muted-foreground">
             {providerMeta}
@@ -128,39 +186,148 @@ export default function SettingsProviderDetailRoute() {
       </header>
 
       <section className="flex flex-col gap-[18px] py-[18px]">
+        <h3 className="font-heading text-[1.12rem] leading-[1.2] text-foreground">
+          Provider
+        </h3>
         <div>
           <div className="flex flex-col gap-[14px] py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
               <p className="text-[0.98rem] font-medium text-foreground">
-                Website
+                Provider Name
               </p>
             </div>
-            <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
-              <a
-                className="underline underline-offset-4"
-                href={catalog.websiteUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {catalog.websiteUrl}
-              </a>
+            <div className="min-w-0 lg:flex-1">
+              <Input
+                value={provider.label}
+                onChange={(event) =>
+                  updateProvider((current) => ({
+                    ...current,
+                    label: event.target.value,
+                  }))
+                }
+                placeholder="Custom Provider"
+              />
             </div>
           </div>
+
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-start lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">ID</p>
+              <p className="text-[0.86rem] leading-[1.5] text-muted-foreground">
+                Internal key used in local settings.
+              </p>
+            </div>
+            <div className="min-w-0 lg:flex-1">
+              <div className="rounded-2xl bg-secondary/70 px-[14px] py-3 font-mono text-[0.88rem] text-foreground">
+                {provider.id}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-start lg:justify-between lg:gap-7">
+            <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+              <p className="text-[0.98rem] font-medium text-foreground">
+                API Style
+              </p>
+              <p className="text-[0.86rem] leading-[1.5] text-muted-foreground">
+                Provider-level default for all models unless a model overrides
+                it.
+              </p>
+            </div>
+            <fieldset className="flex min-w-0 flex-col gap-2.5 lg:flex-1">
+              <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
+                <input
+                  type="radio"
+                  name={`provider-api-style-${providerId}`}
+                  checked={provider.apiStyle === "openai"}
+                  onChange={() =>
+                    updateProvider((current) => ({
+                      ...current,
+                      apiStyle: "openai",
+                    }))
+                  }
+                />
+                <span>OpenAI style API</span>
+              </label>
+              <label className="flex min-w-0 items-center gap-2.5 text-[0.92rem] text-foreground">
+                <input
+                  type="radio"
+                  name={`provider-api-style-${providerId}`}
+                  checked={provider.apiStyle === "anthropic"}
+                  onChange={() =>
+                    updateProvider((current) => ({
+                      ...current,
+                      apiStyle: "anthropic",
+                    }))
+                  }
+                />
+                <span>Anthropic style API</span>
+              </label>
+            </fieldset>
+          </div>
+
           <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
             <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
-              <p className="text-[0.98rem] font-medium text-foreground">Docs</p>
+              <p className="text-[0.98rem] font-medium text-foreground">
+                Base URL
+              </p>
+              <p className="text-[0.86rem] leading-[1.5] text-muted-foreground">
+                Example: OpenAI-compatible gateways use `/v1`,
+                Anthropic-compatible gateways use `/v1`.
+              </p>
             </div>
-            <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
-              <a
-                className="underline underline-offset-4"
-                href={catalog.docsUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {catalog.docsUrl}
-              </a>
+            <div className="min-w-0 lg:flex-1">
+              <Input
+                value={provider.baseUrl}
+                onChange={(event) =>
+                  updateProvider((current) => ({
+                    ...current,
+                    baseUrl: event.target.value,
+                  }))
+                }
+                placeholder="https://api.example.com/v1"
+              />
             </div>
           </div>
+
+          {catalog ? (
+            <>
+              <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+                <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+                  <p className="text-[0.98rem] font-medium text-foreground">
+                    Website
+                  </p>
+                </div>
+                <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
+                  <a
+                    className="underline underline-offset-4"
+                    href={catalog.websiteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {catalog.websiteUrl}
+                  </a>
+                </div>
+              </div>
+              <div className="flex flex-col gap-[14px] border-t border-border/90 py-4 lg:flex-row lg:items-center lg:justify-between lg:gap-7">
+                <div className="flex min-w-0 flex-col gap-1 lg:basis-[17rem]">
+                  <p className="text-[0.98rem] font-medium text-foreground">
+                    Docs
+                  </p>
+                </div>
+                <div className="min-w-0 text-[0.9rem] text-foreground lg:flex-1">
+                  <a
+                    className="underline underline-offset-4"
+                    href={catalog.docsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {catalog.docsUrl}
+                  </a>
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
       </section>
 
@@ -210,7 +377,9 @@ export default function SettingsProviderDetailRoute() {
                     apiKey: event.target.value,
                   }))
                 }
-                placeholder="sk-..."
+                placeholder={
+                  provider.apiStyle === "anthropic" ? "sk-ant-..." : "sk-..."
+                }
               />
             </div>
           </div>
@@ -328,6 +497,30 @@ export default function SettingsProviderDetailRoute() {
 
                   <label className="flex min-w-0 flex-col gap-2">
                     <span className="text-[0.88rem] font-medium text-foreground">
+                      API Style
+                    </span>
+                    <select
+                      value={model.apiStyleOverride || ""}
+                      onChange={(event) =>
+                        updateModel(index, (current) => ({
+                          ...current,
+                          apiStyleOverride:
+                            event.target.value === "openai" ||
+                            event.target.value === "anthropic"
+                              ? event.target.value
+                              : null,
+                        }))
+                      }
+                      className="h-11 rounded-[16px] border border-input bg-background px-3 text-[0.92rem] text-foreground transition-colors outline-none focus:border-ring"
+                    >
+                      <option value="">Inherit provider default</option>
+                      <option value="openai">OpenAI style</option>
+                      <option value="anthropic">Anthropic style</option>
+                    </select>
+                  </label>
+
+                  <label className="flex min-w-0 flex-col gap-2">
+                    <span className="text-[0.88rem] font-medium text-foreground">
                       Temperature
                     </span>
                     <Input
@@ -345,7 +538,7 @@ export default function SettingsProviderDetailRoute() {
                     />
                   </label>
 
-                  <label className="flex min-w-0 flex-col gap-2">
+                  <label className="flex min-w-0 flex-col gap-2 lg:col-span-2">
                     <span className="text-[0.88rem] font-medium text-foreground">
                       Context Window
                     </span>
@@ -372,25 +565,27 @@ export default function SettingsProviderDetailRoute() {
 
       <Separator />
 
-      <div className="flex flex-wrap justify-end gap-2 pt-[18px]">
-        <Button
-          variant="outline"
-          onClick={() =>
-            setDraft((current) => ({
-              ...current,
-              providers: {
-                ...current.providers,
-                [providerId]: getDefaultProviderSettings(providerId),
-              },
-            }))
-          }
-          disabled={!hasProviderChanges}
-        >
-          Reset
-        </Button>
-        <Button onClick={saveDraft} disabled={!hasProviderChanges}>
-          Save
-        </Button>
+      <div className="flex flex-wrap justify-between gap-2 pt-[18px]">
+        <div>
+          {provider.source === "custom" ? (
+            <Button variant="outline" onClick={removeProvider}>
+              <Trash2Icon data-icon="inline-start" />
+              Delete Provider
+            </Button>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={resetProvider}
+            disabled={!hasProviderChanges}
+          >
+            Reset
+          </Button>
+          <Button onClick={saveDraft} disabled={!hasProviderChanges}>
+            Save
+          </Button>
+        </div>
       </div>
     </div>
   )

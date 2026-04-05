@@ -9,6 +9,7 @@ import {
   getAppSettings,
   type ThemeMode,
 } from "./lib/app-settings"
+import { syncRuntimeSettings } from "./lib/runtime-settings-sync"
 
 const THEME_MEDIA_QUERY = "(prefers-color-scheme: dark)"
 
@@ -131,10 +132,56 @@ function ThemeController() {
   return null
 }
 
+function RuntimeSettingsSyncController() {
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    let disposed = false
+
+    const syncSettings = () =>
+      syncRuntimeSettings(getAppSettings()).catch((error) => {
+        if (disposed) {
+          return
+        }
+
+        console.error("Failed to sync runtime settings", error)
+      })
+
+    const handleSettingsUpdated = () => {
+      void syncSettings()
+    }
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key && event.key !== APP_SETTINGS_STORAGE_KEY) {
+        return
+      }
+
+      void syncSettings()
+    }
+
+    void syncSettings()
+    window.addEventListener(APP_SETTINGS_UPDATED_EVENT, handleSettingsUpdated)
+    window.addEventListener("storage", handleStorage)
+
+    return () => {
+      disposed = true
+      window.removeEventListener(
+        APP_SETTINGS_UPDATED_EVENT,
+        handleSettingsUpdated
+      )
+      window.removeEventListener("storage", handleStorage)
+    }
+  }, [])
+
+  return null
+}
+
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ThemeController />
+      <RuntimeSettingsSyncController />
       <TooltipProvider>{children}</TooltipProvider>
     </>
   )

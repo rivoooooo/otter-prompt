@@ -9,9 +9,11 @@ const LEGACY_PROJECTS_FILE = join(OTTER_HOME, "projects.json")
 
 function defaultState() {
   return {
-    version: 1,
+    version: 2,
     desktopKeyRef: null,
-    preferences: {},
+    preferences: {
+      appSettings: null,
+    },
     projects: [],
     sync: {},
   }
@@ -36,7 +38,10 @@ function withDefaults(input) {
     ...input,
     projects: input?.projects || [],
     sync: input?.sync || {},
-    preferences: input?.preferences || {},
+    preferences: {
+      ...base.preferences,
+      ...(input?.preferences || {}),
+    },
     desktopKeyRef: input?.desktopKeyRef || null,
   }
 }

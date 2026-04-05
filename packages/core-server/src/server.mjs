@@ -26,13 +26,23 @@ import {
   renamePath,
   writeTextFile,
 } from "./storage/fs-api.mjs"
+import {
+  resolveProjectSystemPrompt,
+  resolveStoredModelRuntimeConfig,
+} from "./ai/chat-runtime.mjs"
 import { streamChat } from "./ai/ai-client.mjs"
 import { openInEditor } from "./editor.mjs"
 import { applySnapshot, buildSnapshot } from "./storage/project-snapshot.mjs"
-import { getCloudSyncStatus, pullFromCloud, pushToCloud } from "./sync-client.mjs"
+import {
+  getCloudSyncStatus,
+  pullFromCloud,
+  pushToCloud,
+} from "./sync-client.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DEFAULT_APP_DIST = normalize(join(__dirname, "../../../apps/app/build/client"))
+const DEFAULT_APP_DIST = normalize(
+  join(__dirname, "../../../apps/app/build/client")
+)
 const execFileAsync = promisify(execFile)
 
 const CONTENT_TYPE = {
@@ -90,7 +100,7 @@ async function tryServeAppAsset(req, res, pathname) {
     } catch {
       res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" })
       res.end(
-        "Front-end not found. Build app first: pnpm --filter @otter-prompt/app build",
+        "Front-end not found. Build app first: pnpm --filter @otter-prompt/app build"
       )
       return true
     }
@@ -104,7 +114,7 @@ function json(res, status, body) {
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, x-otter-api-key",
+    "Content-Type, Authorization"
   )
   res.writeHead(status, { "Content-Type": "application/json" })
   res.end(JSON.stringify(body))
@@ -140,7 +150,7 @@ async function selectDirectory() {
       '$dialog.Description = "Select project folder"',
       "$dialog.ShowNewFolderButton = $false",
       "$result = $dialog.ShowDialog()",
-      'if ($result -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dialog.SelectedPath }',
+      "if ($result -eq [System.Windows.Forms.DialogResult]::OK) { Write-Output $dialog.SelectedPath }",
     ].join("; ")
 
     const { stdout } = await execFileAsync("powershell", [
@@ -169,10 +179,13 @@ export function createCoreServer() {
     try {
       if (method === "OPTIONS") {
         res.setHeader("Access-Control-Allow-Origin", "*")
-        res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+        res.setHeader(
+          "Access-Control-Allow-Methods",
+          "GET,POST,PUT,DELETE,OPTIONS"
+        )
         res.setHeader(
           "Access-Control-Allow-Headers",
-          "Content-Type, Authorization, x-otter-api-key",
+          "Content-Type, Authorization"
         )
         res.writeHead(204)
         res.end()
@@ -190,7 +203,7 @@ export function createCoreServer() {
           .map((model) => model.trim())
           .filter(Boolean)
         const models = Array.from(
-          new Set([defaultModel, ...envModels, "gpt-4.1", "gpt-4o-mini"]),
+          new Set([defaultModel, ...envModels, "gpt-4.1", "gpt-4o-mini"])
         )
 
         return json(res, 200, {
@@ -242,6 +255,19 @@ export function createCoreServer() {
         const body = await readBody(req)
         const desktopKeyRef = await setDesktopKeyRef(body.ref || null)
         return json(res, 200, { desktopKeyRef })
+      }
+
+      if (method === "PUT" && url.pathname === "/state/settings") {
+        const body = await readBody(req)
+        const state = await readState()
+        state.preferences = {
+          ...(state.preferences || {}),
+          appSettings: body.settings || null,
+        }
+        const nextState = await writeState(state)
+        return json(res, 200, {
+          settings: nextState.preferences?.appSettings || null,
+        })
       }
 
       if (method === "GET" && url.pathname === "/tree") {
@@ -336,7 +362,9 @@ export function createCoreServer() {
           return json(res, 201, { path, name: body.name })
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "failed to create directory"
+            error instanceof Error
+              ? error.message
+              : "failed to create directory"
           const status = message.includes("exist") ? 409 : 400
           return json(res, status, { error: message })
         }
@@ -365,10 +393,9 @@ export function createCoreServer() {
       if (method === "POST" && url.pathname === "/chat/stream") {
         const body = await readBody(req)
         const message = body.message || ""
-        const systemPrompt = body.systemPrompt || ""
-        const provider = body.provider || "openai"
-        const model = body.model || undefined
-        const apiKey = req.headers["x-otter-api-key"]
+        const providerId = body.providerId || ""
+        const modelId = body.modelId || ""
+        const projectId = body.projectId || ""
 
         res.writeHead(200, {
           "Content-Type": "text/event-stream",
@@ -382,14 +409,31 @@ export function createCoreServer() {
           res.write(`data: ${payload}\n\n`)
         }
 
-        await streamChat({
-          message,
-          systemPrompt,
-          provider,
-          model,
-          write,
-          apiKey: typeof apiKey === "string" ? apiKey : undefined,
-        })
+        try {
+          const [{ apiKey, baseUrl, apiStyle }, systemPrompt] =
+            await Promise.all([
+              resolveStoredModelRuntimeConfig({
+                providerId,
+                modelId,
+              }),
+              resolveProjectSystemPrompt(projectId),
+            ])
+
+          await streamChat({
+            message,
+            systemPrompt,
+            providerId,
+            model: modelId,
+            baseUrl: baseUrl || undefined,
+            apiStyle,
+            write,
+            apiKey: apiKey || undefined,
+          })
+        } catch (error) {
+          write(
+            `Error: ${error instanceof Error ? error.message : "chat stream failed"}`
+          )
+        }
         res.write("event: done\\ndata: {}\\n\\n")
         res.end()
         return
@@ -414,7 +458,9 @@ export function createCoreServer() {
           files,
         })
 
-        const fileHashes = Object.fromEntries(files.map((file) => [file.path, file.hash]))
+        const fileHashes = Object.fromEntries(
+          files.map((file) => [file.path, file.hash])
+        )
         const now = new Date().toISOString()
         const sync = await updateSyncRecord(projectId, {
           fileHashes,
@@ -425,7 +471,11 @@ export function createCoreServer() {
         })
         const updated = await updateProject(projectId, { lastSyncedAt: now })
 
-        return json(res, 200, { sync, project: updated, revision: cloud.revision })
+        return json(res, 200, {
+          sync,
+          project: updated,
+          revision: cloud.revision,
+        })
       }
 
       if (method === "POST" && url.pathname === "/sync/pull") {

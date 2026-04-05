@@ -1,13 +1,16 @@
 import { defineEventHandler, readBody } from "h3"
-import { streamChat } from "../../lib/services"
+import {
+  resolveProjectSystemPrompt,
+  resolveStoredModelRuntimeConfig,
+  streamChat,
+} from "../../lib/services"
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const message = body?.message || ""
-  const systemPrompt = body?.systemPrompt || ""
-  const provider = body?.provider || "openai"
-  const model = body?.model || undefined
-  const apiKey = event.node.req.headers["x-otter-api-key"]
+  const providerId = body?.providerId || ""
+  const modelId = body?.modelId || ""
+  const projectId = body?.projectId || ""
 
   event.node.res.statusCode = 200
   event.node.res.setHeader("Content-Type", "text/event-stream")
@@ -19,14 +22,30 @@ export default defineEventHandler(async (event) => {
     event.node.res.write(`data: ${payload}\n\n`)
   }
 
-  await streamChat({
-    message,
-    systemPrompt,
-    provider,
-    model,
-    write,
-    apiKey: typeof apiKey === "string" ? apiKey : undefined,
-  })
+  try {
+    const [{ apiKey, baseUrl, apiStyle }, systemPrompt] = await Promise.all([
+      resolveStoredModelRuntimeConfig({
+        providerId,
+        modelId,
+      }),
+      resolveProjectSystemPrompt(projectId),
+    ])
+
+    await streamChat({
+      message,
+      systemPrompt,
+      providerId,
+      model: modelId,
+      baseUrl: baseUrl || undefined,
+      apiStyle,
+      write,
+      apiKey: apiKey || undefined,
+    })
+  } catch (error) {
+    write(
+      `Error: ${error instanceof Error ? error.message : "chat stream failed"}`
+    )
+  }
 
   event.node.res.write("event: done\ndata: {}\n\n")
   event.node.res.end()

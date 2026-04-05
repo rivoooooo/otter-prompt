@@ -7,14 +7,14 @@ import { cn } from "@workspace/ui/lib/utils"
 import {
   DEFAULT_GENERAL_SETTINGS,
   getEffectiveProviderConfig,
+  listProviderSettings,
 } from "../lib/app-settings"
-import { getProviderCatalog } from "../lib/provider-catalog"
 import type { SettingsRouteContext } from "../lib/settings-route"
 
 export default function SettingsGeneralRoute() {
   const { draft, saved, setDraft, saveDraft } =
     useOutletContext<SettingsRouteContext>()
-  const catalog = getProviderCatalog()
+  const providers = listProviderSettings(draft)
   const effective = getEffectiveProviderConfig(draft)
 
   const hasGeneralChanges = useMemo(
@@ -70,10 +70,13 @@ export default function SettingsGeneralRoute() {
             <div className="min-w-0 lg:flex-1">
               <div className="flex flex-col gap-1 rounded-2xl bg-secondary/70 px-[14px] py-3">
                 <p className="text-[0.96rem] font-medium text-foreground">
-                  {effective.catalog?.label || effective.providerId}
+                  {effective.provider.label}
                 </p>
                 <p className="text-[0.84rem] leading-[1.4] text-muted-foreground">
-                  {effective.defaultModel || "No default model"}
+                  {effective.defaultModel || "No default model"} ·{" "}
+                  {effective.apiStyle === "openai"
+                    ? "OpenAI style"
+                    : "Anthropic style"}
                 </p>
               </div>
             </div>
@@ -89,9 +92,7 @@ export default function SettingsGeneralRoute() {
         </h3>
         <div className="flex flex-col gap-[14px] py-4">
           <div className="flex min-w-0 flex-col gap-1">
-            <p className="text-[0.98rem] font-medium text-foreground">
-              Theme
-            </p>
+            <p className="text-[0.98rem] font-medium text-foreground">Theme</p>
             <p className="text-[0.86rem] leading-[1.5] text-muted-foreground">
               Choose how Otter matches Claude&apos;s warm light and dark
               surfaces.
@@ -165,17 +166,19 @@ export default function SettingsGeneralRoute() {
           </Button>
         </div>
         <div className="flex flex-col gap-2">
-          {catalog.map((entry) => {
-            const provider = draft.providers[entry.id]
-            const isActive = draft.general.defaultProviderId === entry.id
+          {providers.map((provider) => {
+            const isActive = draft.general.defaultProviderId === provider.id
             const meta = [
-              provider?.enabled ? "Enabled" : "Disabled",
-              `${provider?.models.length || 0} models`,
+              provider.enabled ? "Enabled" : "Disabled",
+              provider.apiStyle === "openai"
+                ? "OpenAI style"
+                : "Anthropic style",
+              `${provider.models.length} models`,
             ].join(" · ")
 
             return (
               <button
-                key={entry.id}
+                key={provider.id}
                 type="button"
                 className={cn(
                   "flex w-full min-w-0 flex-col gap-1 rounded-[18px] border-0 bg-transparent px-4 py-[14px] text-left transition-colors duration-150 hover:bg-accent/70",
@@ -186,13 +189,13 @@ export default function SettingsGeneralRoute() {
                     ...current,
                     general: {
                       ...current.general,
-                      defaultProviderId: entry.id,
+                      defaultProviderId: provider.id,
                     },
                   }))
                 }
               >
                 <span className="text-[0.98rem] font-medium text-foreground">
-                  {entry.label}
+                  {provider.label}
                 </span>
                 <span className="text-[0.84rem] leading-[1.45] text-muted-foreground">
                   {meta}

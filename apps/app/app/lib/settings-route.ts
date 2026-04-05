@@ -28,5 +28,5 @@ export type SettingsRouteContext = {
   canSave: boolean
   savedAt: number | null
   setDraft: Dispatch<SetStateAction<AppSettings>>
-  saveDraft: () => void
+  saveDraft: () => Promise<void>
 }

@@ -25,6 +25,7 @@ import {
   saveAppSettings,
   type AppSettings,
 } from "../lib/app-settings"
+import { syncRuntimeSettings } from "../lib/runtime-settings-sync"
 import {
   SETTINGS_NAV_ITEMS,
   type SettingsNavItem,
@@ -76,8 +77,9 @@ export default function SettingsRoute() {
     [saved, draft]
   )
 
-  function saveDraft() {
+  async function saveDraft() {
     saveAppSettings(draft)
+    await syncRuntimeSettings(draft)
     setSaved(draft)
     setSavedAt(Date.now())
   }

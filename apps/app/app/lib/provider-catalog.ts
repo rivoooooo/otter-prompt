@@ -1,3 +1,5 @@
+export type ProviderApiStyle = "openai" | "anthropic"
+
 export type ProviderCatalogModel = {
   id: string
   label: string
@@ -13,6 +15,7 @@ export type ProviderCatalogEntry = {
   docsUrl: string
   supportsCustomModels: boolean
   runtimeStatus: "native" | "catalog-only"
+  defaultApiStyle: ProviderApiStyle
   models: ProviderCatalogModel[]
 }
 
@@ -20,12 +23,12 @@ const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
   {
     id: "openai",
     label: "OpenAI",
-    description:
-      "Native runtime provider in the current app build. Best fit for the existing chat and cluster test flows.",
+    description: "Native runtime provider for OpenAI-compatible chat APIs.",
     websiteUrl: "https://openai.com",
     docsUrl: "https://platform.openai.com/docs/models",
     supportsCustomModels: true,
     runtimeStatus: "native",
+    defaultApiStyle: "openai",
     models: [
       {
         id: "gpt-4.1-mini",
@@ -57,33 +60,49 @@ const PROVIDER_CATALOG: ProviderCatalogEntry[] = [
     id: "anthropic",
     label: "Anthropic",
     description:
-      "Prepared catalog entry for Claude models. UI can store keys and custom model metadata before runtime support lands.",
+      "Native runtime provider for Anthropic-compatible message APIs.",
     websiteUrl: "https://www.anthropic.com",
     docsUrl: "https://docs.anthropic.com",
     supportsCustomModels: true,
-    runtimeStatus: "catalog-only",
-    models: [],
+    runtimeStatus: "native",
+    defaultApiStyle: "anthropic",
+    models: [
+      {
+        id: "claude-sonnet-4-5",
+        label: "Claude Sonnet 4.5",
+        temperature: 1,
+        contextWindow: 200000,
+      },
+      {
+        id: "claude-opus-4-1",
+        label: "Claude Opus 4.1",
+        temperature: 1,
+        contextWindow: 200000,
+      },
+    ],
   },
   {
     id: "google",
     label: "Google",
     description:
-      "Prepared catalog entry for Gemini models. Use custom model rows until runtime integration is added.",
+      "Built-in catalog entry for Gemini-style providers. Adjust API style and base URL to match your gateway.",
     websiteUrl: "https://ai.google.dev",
     docsUrl: "https://ai.google.dev/gemini-api/docs/models",
     supportsCustomModels: true,
     runtimeStatus: "catalog-only",
+    defaultApiStyle: "openai",
     models: [],
   },
   {
     id: "openrouter",
     label: "OpenRouter",
     description:
-      "Aggregator-style provider catalog entry for teams that want one API surface for multiple upstream models.",
+      "Aggregator-style provider catalog entry for OpenAI-compatible multi-model gateways.",
     websiteUrl: "https://openrouter.ai",
     docsUrl: "https://openrouter.ai/docs",
     supportsCustomModels: true,
     runtimeStatus: "catalog-only",
+    defaultApiStyle: "openai",
     models: [],
   },
 ]
@@ -114,4 +133,14 @@ export function getDefaultProviderId() {
 
 export function getDefaultProviderModels(providerId: string) {
   return getProviderCatalogEntry(providerId)?.models.map(cloneModel) || []
+}
+
+export function getDefaultProviderApiStyle(
+  providerId: string
+): ProviderApiStyle {
+  return getProviderCatalogEntry(providerId)?.defaultApiStyle || "openai"
+}
+
+export function isBuiltInProvider(providerId: string) {
+  return PROVIDER_CATALOG.some((entry) => entry.id === providerId)
 }

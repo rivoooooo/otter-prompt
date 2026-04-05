@@ -49,10 +49,13 @@ import { ClusterChat } from "../components/cluster-chat"
 import { ProjectFileExplorer } from "../components/project-file-explorer"
 import { apiStream } from "../lib/api-client"
 import {
+  APP_SETTINGS_UPDATED_EVENT,
   getAppSettings,
   getEffectiveProviderConfig,
+  getPlaygroundModelOptions,
   type AppSettings,
 } from "../lib/app-settings"
+import { getRootFileByName } from "../lib/project-playground"
 import { estimateTokensForPreset } from "../lib/token-estimation"
 import type { WorkspaceShellContext } from "./workspace"
 
@@ -69,7 +72,6 @@ type FileNameParts = {
   extension: string
 }
 
-const DEFAULT_SYSTEM_PROMPT = ""
 const nextId = () => Math.random().toString(36).slice(2)
 
 function splitFileName(path: string): FileNameParts {
@@ -169,6 +171,7 @@ export default function Home() {
   const [chatInput, setChatInput] = useState("")
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [settings, setSettings] = useState<AppSettings>(getAppSettings())
+  const [selectedModelKey, setSelectedModelKey] = useState("")
   const [clusterOpen, setClusterOpen] = useState(false)
   const [chatRunning, setChatRunning] = useState(false)
   const [rightPanelView, setRightPanelView] = useState<RightPanelView>("chat")
@@ -179,10 +182,15 @@ export default function Home() {
   const [renameRunning, setRenameRunning] = useState(false)
   const fileNameEditorRef = useRef<HTMLDivElement | null>(null)
   const fileBaseNameInputRef = useRef<HTMLInputElement | null>(null)
-  const systemPrompt = DEFAULT_SYSTEM_PROMPT
 
   useEffect(() => {
-    setSettings(getAppSettings())
+    const syncSettings = () => setSettings(getAppSettings())
+
+    syncSettings()
+    window.addEventListener(APP_SETTINGS_UPDATED_EVENT, syncSettings)
+
+    return () =>
+      window.removeEventListener(APP_SETTINGS_UPDATED_EVENT, syncSettings)
   }, [])
 
   useEffect(() => {
@@ -212,6 +220,21 @@ export default function Home() {
   }, [isEditingFileName])
 
   const effectiveProvider = getEffectiveProviderConfig(settings)
+  const modelOptions = useMemo(
+    () => getPlaygroundModelOptions(settings),
+    [settings]
+  )
+  const mainPromptFile = useMemo(
+    () => getRootFileByName(tree, "main.md"),
+    [tree]
+  )
+  const selectedModel = useMemo(
+    () =>
+      modelOptions.find((option) => option.key === selectedModelKey) ||
+      modelOptions[0] ||
+      null,
+    [modelOptions, selectedModelKey]
+  )
   const contentStats = useMemo(
     () => ({
       characters: getCharacterCount(fileContent),
@@ -227,6 +250,20 @@ export default function Home() {
   const fileExtensionText = fileExtension.startsWith(".")
     ? fileExtension.slice(1)
     : fileExtension
+
+  useEffect(() => {
+    if (!selectedModelKey && modelOptions[0]?.key) {
+      setSelectedModelKey(modelOptions[0].key)
+      return
+    }
+
+    if (
+      selectedModelKey &&
+      !modelOptions.some((option) => option.key === selectedModelKey)
+    ) {
+      setSelectedModelKey(modelOptions[0]?.key || "")
+    }
+  }, [modelOptions, selectedModelKey])
 
   async function saveWorkspace() {
     await saveActiveFile()
@@ -333,7 +370,7 @@ export default function Home() {
   }
 
   async function runChat() {
-    if (!chatInput.trim() || chatRunning) {
+    if (!chatInput.trim() || chatRunning || !selectedModel) {
       return
     }
 
@@ -349,16 +386,12 @@ export default function Home() {
     ])
 
     try {
-      const response = await apiStream(
-        "/chat/stream",
-        {
-          message: userMessage,
-          systemPrompt,
-          provider: effectiveProvider.providerId,
-          model: effectiveProvider.defaultModel,
-        },
-        { apiKey: effectiveProvider.apiKey }
-      )
+      const response = await apiStream("/chat/stream", {
+        message: userMessage,
+        providerId: selectedModel.providerId,
+        modelId: selectedModel.modelId,
+        projectId: activeProject?.id || "",
+      })
 
       if (!response.ok || !response.body) {
         throw new Error("failed to run chat stream")
@@ -412,7 +445,10 @@ export default function Home() {
 
   function openClusterTest() {
     if (settings.general.clusterOpenMode === "page") {
-      navigate("/cluster")
+      const query = activeProject?.id
+        ? `?projectId=${encodeURIComponent(activeProject.id)}`
+        : ""
+      navigate(`/cluster${query}`)
       return
     }
 
@@ -603,6 +639,10 @@ export default function Home() {
                           <ChevronDownIcon data-icon="inline-end" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
+                          <DropdownMenuItem onClick={openClusterTest}>
+                            <SparklesIcon data-icon="inline-start" />
+                            Cluster Test
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setChatMessages([])}>
                             Clear Conversation
                           </DropdownMenuItem>
@@ -613,10 +653,49 @@ export default function Home() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      <Button variant="outline" onClick={openClusterTest}>
-                        <SparklesIcon data-icon="inline-start" />
-                        Cluster Test
-                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="border-b border-border/90 px-6 pb-5">
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                      <label className="flex min-w-0 flex-col gap-2">
+                        <span className="text-[0.76rem] tracking-[0.12px] text-muted-foreground uppercase">
+                          Model Name
+                        </span>
+                        <select
+                          value={selectedModel?.key || ""}
+                          onChange={(event) =>
+                            setSelectedModelKey(event.target.value)
+                          }
+                          disabled={modelOptions.length === 0}
+                          className="h-11 rounded-[18px] border border-border/90 bg-card px-3 text-[0.95rem] text-foreground transition-colors outline-none focus:border-ring disabled:opacity-60"
+                        >
+                          {modelOptions.length === 0 ? (
+                            <option value="">No enabled models</option>
+                          ) : null}
+                          {modelOptions.map((option) => (
+                            <option key={option.key} value={option.key}>
+                              {option.providerLabel} / {option.modelLabel}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="flex min-w-0 flex-col gap-2">
+                        <span className="text-[0.76rem] tracking-[0.12px] text-muted-foreground uppercase">
+                          System Prompt
+                        </span>
+                        <div className="rounded-[18px] border border-border/90 bg-card px-4 py-3">
+                          <p className="text-[0.92rem] text-foreground">
+                            {mainPromptFile
+                              ? "Server will inject root main.md"
+                              : "No main.md found at project root"}
+                          </p>
+                          <p className="mt-1 text-[0.8rem] leading-[1.5] text-muted-foreground">
+                            {mainPromptFile?.path ||
+                              "Create /main.md to define the playground system prompt."}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -625,7 +704,9 @@ export default function Home() {
                       <div className="flex flex-col gap-3 pr-1 pb-[228px]">
                         {chatMessages.length === 0 && (
                           <p className="max-w-[28rem] pt-[14px] text-[0.96rem] leading-[1.6] text-muted-foreground">
-                            Start a conversation to test the model.
+                            {selectedModel
+                              ? "Start a conversation to test the selected model."
+                              : "Enable at least one provider model in Settings to start testing."}
                           </p>
                         )}
                         {chatMessages.map((message) => (
@@ -659,7 +740,7 @@ export default function Home() {
                                 setError(String(cause))
                               )
                             }
-                            disabled={chatRunning}
+                            disabled={chatRunning || !selectedModel}
                           >
                             <SendIcon data-icon="inline-start" />
                             Send
@@ -746,10 +827,14 @@ export default function Home() {
           </DialogHeader>
           <div className="h-[80svh] border-t border-border px-6 py-5">
             <ClusterChat
-              systemPrompt={systemPrompt}
-              apiKey={effectiveProvider.apiKey}
-              defaultProvider={effectiveProvider.providerId}
-              defaultModel={effectiveProvider.defaultModel}
+              projectId={activeProject?.id || ""}
+              modelOptions={modelOptions}
+              defaultModelKey={
+                selectedModel?.key ||
+                effectiveProvider.defaultModelOption?.key ||
+                modelOptions[0]?.key ||
+                ""
+              }
             />
           </div>
         </DialogContent>
