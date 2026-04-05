@@ -1,6 +1,7 @@
 import { createServer } from "node:http"
 import { readFile } from "node:fs/promises"
 import { execFile } from "node:child_process"
+import { Readable } from "node:stream"
 import { fileURLToPath } from "node:url"
 import { dirname, join, normalize } from "node:path"
 import { URL } from "node:url"
@@ -30,7 +31,11 @@ import {
   resolveProjectSystemPrompt,
   resolveStoredModelRuntimeConfig,
 } from "./ai/chat-runtime.mjs"
-import { streamChat } from "./ai/ai-client.mjs"
+import {
+  readChatUploadBuffer,
+  storeChatUploads,
+} from "./ai/chat-upload-store.mjs"
+import { streamChat, streamChatUI } from "./ai/ai-client.mjs"
 import { openInEditor } from "./editor.mjs"
 import { applySnapshot, buildSnapshot } from "./storage/project-snapshot.mjs"
 import {
@@ -131,6 +136,17 @@ async function readBody(req) {
   }
 
   return JSON.parse(raw)
+}
+
+async function readFormData(req) {
+  const request = new Request("http://127.0.0.1/upload", {
+    method: req.method || "POST",
+    headers: req.headers,
+    body: Readable.toWeb(req),
+    duplex: "half",
+  })
+
+  return request.formData()
 }
 
 async function selectDirectory() {
@@ -437,6 +453,101 @@ export function createCoreServer() {
         res.write("event: done\\ndata: {}\\n\\n")
         res.end()
         return
+      }
+
+      if (method === "POST" && url.pathname === "/chat/uploads") {
+        const formData = await readFormData(req)
+        const files = formData
+          .getAll("files")
+          .filter(
+            (entry) =>
+              entry &&
+              typeof entry === "object" &&
+              typeof entry.arrayBuffer === "function" &&
+              typeof entry.name === "string"
+          )
+
+        if (files.length === 0) {
+          return json(res, 400, { error: "at least one file is required" })
+        }
+
+        const uploads = await storeChatUploads(files)
+        return json(res, 201, { uploads })
+      }
+
+      if (method === "GET" && url.pathname.startsWith("/chat/uploads/")) {
+        const uploadId = decodeURIComponent(url.pathname.slice("/chat/uploads/".length))
+        const payload = await readChatUploadBuffer(uploadId)
+
+        if (!payload) {
+          return json(res, 404, { error: "upload not found or expired" })
+        }
+
+        const dispositionType = payload.record.mediaType.startsWith("image/")
+          ? "inline"
+          : "attachment"
+        res.writeHead(200, {
+          "Content-Type": payload.record.mediaType,
+          "Content-Length": String(payload.record.size),
+          "Cache-Control": "no-cache",
+          "Access-Control-Allow-Origin": "*",
+          "Content-Disposition": `${dispositionType}; filename="${payload.record.filename}"`,
+          "X-Otter-Upload-Expires-At": new Date(
+            payload.record.expiresAt
+          ).toISOString(),
+        })
+        res.end(payload.buffer)
+        return
+      }
+
+      if (method === "POST" && url.pathname === "/chat/ui") {
+        const body = await readBody(req)
+        const providerId = body.providerId || ""
+        const modelId = body.modelId || ""
+        const projectId = body.projectId || ""
+        const messages = Array.isArray(body.messages) ? body.messages : []
+
+        if (!providerId) {
+          return json(res, 400, { error: "providerId is required" })
+        }
+
+        if (!modelId) {
+          return json(res, 400, { error: "modelId is required" })
+        }
+
+        try {
+          const [{ apiKey, baseUrl, apiStyle }, systemPrompt] =
+            await Promise.all([
+              resolveStoredModelRuntimeConfig({
+                providerId,
+                modelId,
+              }),
+              resolveProjectSystemPrompt(projectId),
+            ])
+
+          await streamChatUI({
+            messages: messages.map((message) => {
+              if (!message || typeof message !== "object") {
+                return message
+              }
+
+              const { id, ...rest } = message
+              return rest
+            }),
+            systemPrompt,
+            provider: providerId,
+            model: modelId,
+            response: res,
+            baseUrl: baseUrl || undefined,
+            apiKey: apiKey || undefined,
+            apiStyle,
+          })
+          return
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "chat stream failed"
+          return json(res, 500, { error: message })
+        }
       }
 
       if (method === "POST" && url.pathname === "/sync/push") {

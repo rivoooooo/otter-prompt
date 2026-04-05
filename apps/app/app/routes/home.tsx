@@ -8,14 +8,11 @@ import {
 } from "react"
 import { useNavigate, useOutletContext } from "react-router"
 import {
-  ChevronDownIcon,
   CopyIcon,
   EllipsisIcon,
   FolderOpenIcon,
   MessageSquareIcon,
   SaveIcon,
-  SendIcon,
-  SparklesIcon,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -35,7 +32,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { Separator } from "@workspace/ui/components/separator"
 import { Textarea } from "@workspace/ui/components/textarea"
 import {
@@ -46,8 +42,8 @@ import {
 } from "@workspace/ui/components/tooltip"
 import { cn } from "@workspace/ui/lib/utils"
 import { ClusterChat } from "../components/cluster-chat"
+import { PlaygroundPanel } from "../components/playground-panel"
 import { ProjectFileExplorer } from "../components/project-file-explorer"
-import { apiStream } from "../lib/api-client"
 import {
   APP_SETTINGS_UPDATED_EVENT,
   getAppSettings,
@@ -59,20 +55,12 @@ import { getRootFileByName } from "../lib/project-playground"
 import { estimateTokensForPreset } from "../lib/token-estimation"
 import type { WorkspaceShellContext } from "./workspace"
 
-type ChatMessage = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-}
-
 type RightPanelView = "chat" | "files"
 
 type FileNameParts = {
   baseName: string
   extension: string
 }
-
-const nextId = () => Math.random().toString(36).slice(2)
 
 function splitFileName(path: string): FileNameParts {
   const fileName = path.split(/[/\\]/).filter(Boolean).pop() || ""
@@ -148,6 +136,8 @@ function formatCount(value: number) {
   return new Intl.NumberFormat().format(value)
 }
 
+const DESKTOP_RIGHT_PANEL_MIN_SIZE = 32
+
 export default function Home() {
   const navigate = useNavigate()
   const {
@@ -168,12 +158,9 @@ export default function Home() {
     deleteWorkspacePath,
   } = useOutletContext<WorkspaceShellContext>()
 
-  const [chatInput, setChatInput] = useState("")
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [settings, setSettings] = useState<AppSettings>(getAppSettings())
   const [selectedModelKey, setSelectedModelKey] = useState("")
   const [clusterOpen, setClusterOpen] = useState(false)
-  const [chatRunning, setChatRunning] = useState(false)
   const [rightPanelView, setRightPanelView] = useState<RightPanelView>("chat")
   const [fileBaseName, setFileBaseName] = useState("")
   const [fileExtension, setFileExtension] = useState("")
@@ -369,80 +356,6 @@ export default function Home() {
     }
   }
 
-  async function runChat() {
-    if (!chatInput.trim() || chatRunning || !selectedModel) {
-      return
-    }
-
-    const userMessage = chatInput
-    const assistantId = nextId()
-
-    setChatRunning(true)
-    setChatInput("")
-    setChatMessages((current) => [
-      ...current,
-      { id: nextId(), role: "user", content: userMessage },
-      { id: assistantId, role: "assistant", content: "" },
-    ])
-
-    try {
-      const response = await apiStream("/chat/stream", {
-        message: userMessage,
-        providerId: selectedModel.providerId,
-        modelId: selectedModel.modelId,
-        projectId: activeProject?.id || "",
-      })
-
-      if (!response.ok || !response.body) {
-        throw new Error("failed to run chat stream")
-      }
-
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ""
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) {
-          break
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-        const events = buffer.split("\n\n")
-        buffer = events.pop() || ""
-
-        for (const event of events) {
-          if (!event.startsWith("data: ")) {
-            continue
-          }
-
-          const payload = JSON.parse(event.slice(6)) as { chunk?: string }
-          if (!payload.chunk) {
-            continue
-          }
-
-          setChatMessages((current) =>
-            current.map((message) =>
-              message.id === assistantId
-                ? { ...message, content: message.content + payload.chunk }
-                : message
-            )
-          )
-        }
-      }
-    } catch (cause) {
-      setChatMessages((current) =>
-        current.map((message) =>
-          message.id === assistantId
-            ? { ...message, content: `Error: ${String(cause)}` }
-            : message
-        )
-      )
-    } finally {
-      setChatRunning(false)
-    }
-  }
-
   function openClusterTest() {
     if (settings.general.clusterOpenMode === "page") {
       const query = activeProject?.id
@@ -459,14 +372,14 @@ export default function Home() {
     <>
       <ResizablePanelGroup
         direction={isDesktopLayout ? "horizontal" : "vertical"}
-        className="min-h-dvh"
+        className="h-full min-h-0"
       >
         <ResizablePanel
           defaultSize={isDesktopLayout ? 58 : 60}
-          minSize={35}
-          className="min-w-0"
+          minSize={isDesktopLayout ? 100 - DESKTOP_RIGHT_PANEL_MIN_SIZE : 35}
+          className="min-h-0 min-w-0"
         >
-          <main className="flex min-h-dvh min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] dark:bg-background dark:bg-none">
+          <main className="flex h-full min-h-0 min-w-0 flex-col bg-[radial-gradient(circle_at_top_left,rgb(201_100_66_/_8%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_96%)_0%,rgb(245_244_237_/_82%)_100%)] dark:bg-background dark:bg-none">
             <div className="flex flex-none items-start justify-between gap-3 overflow-hidden px-4 pt-4 pb-5 lg:px-6 lg:pt-6 lg:pb-6">
               <div className="min-w-0 flex-1 overflow-hidden">
                 {isEditingFileName ? (
@@ -614,142 +527,28 @@ export default function Home() {
 
         <ResizablePanel
           defaultSize={isDesktopLayout ? 42 : 40}
-          minSize={25}
-          className="min-w-0"
+          minSize={isDesktopLayout ? DESKTOP_RIGHT_PANEL_MIN_SIZE : 25}
+          className="min-h-0 min-w-0"
         >
-          <section className="flex min-h-full min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 lg:border-l lg:border-border dark:bg-background dark:bg-none">
+          <section className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top_right,rgb(201_100_66_/_5%),transparent_30%),linear-gradient(180deg,rgb(250_249_245_/_94%)_0%,rgb(245_244_237_/_86%)_100%)] p-0 lg:border-l lg:border-border dark:bg-background dark:bg-none">
             <div
               className={cn(
-                "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain",
-                rightPanelView === "chat" && "flex flex-col overflow-hidden"
+                "min-h-0 min-w-0 flex-1 overflow-hidden",
+                rightPanelView === "chat" && "flex flex-col"
               )}
             >
               {rightPanelView === "chat" ? (
-                <div className="flex min-h-full flex-1 flex-col">
-                  <div className="flex items-center justify-between gap-3 p-6">
-                    <h2 className="font-heading text-[1.45rem] leading-[1.2]">
-                      Playground
-                    </h2>
-                    <div className="flex flex-wrap gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={<Button variant="outline" />}
-                        >
-                          More
-                          <ChevronDownIcon data-icon="inline-end" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={openClusterTest}>
-                            <SparklesIcon data-icon="inline-start" />
-                            Cluster Test
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setChatMessages([])}>
-                            Clear Conversation
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => navigate("/settings")}
-                          >
-                            Go to Settings
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-
-                  <div className="border-b border-border/90 px-6 pb-5">
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                      <label className="flex min-w-0 flex-col gap-2">
-                        <span className="text-[0.76rem] tracking-[0.12px] text-muted-foreground uppercase">
-                          Model Name
-                        </span>
-                        <select
-                          value={selectedModel?.key || ""}
-                          onChange={(event) =>
-                            setSelectedModelKey(event.target.value)
-                          }
-                          disabled={modelOptions.length === 0}
-                          className="h-11 rounded-[18px] border border-border/90 bg-card px-3 text-[0.95rem] text-foreground transition-colors outline-none focus:border-ring disabled:opacity-60"
-                        >
-                          {modelOptions.length === 0 ? (
-                            <option value="">No enabled models</option>
-                          ) : null}
-                          {modelOptions.map((option) => (
-                            <option key={option.key} value={option.key}>
-                              {option.providerLabel} / {option.modelLabel}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="flex min-w-0 flex-col gap-2">
-                        <span className="text-[0.76rem] tracking-[0.12px] text-muted-foreground uppercase">
-                          System Prompt
-                        </span>
-                        <div className="rounded-[18px] border border-border/90 bg-card px-4 py-3">
-                          <p className="text-[0.92rem] text-foreground">
-                            {mainPromptFile
-                              ? "Server will inject root main.md"
-                              : "No main.md found at project root"}
-                          </p>
-                          <p className="mt-1 text-[0.8rem] leading-[1.5] text-muted-foreground">
-                            {mainPromptFile?.path ||
-                              "Create /main.md to define the playground system prompt."}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative flex min-h-0 flex-1 flex-col pt-[18px]">
-                    <ScrollArea className="min-h-0 flex-1 p-0">
-                      <div className="flex flex-col gap-3 pr-1 pb-[228px]">
-                        {chatMessages.length === 0 && (
-                          <p className="max-w-[28rem] pt-[14px] text-[0.96rem] leading-[1.6] text-muted-foreground">
-                            {selectedModel
-                              ? "Start a conversation to test the selected model."
-                              : "Enable at least one provider model in Settings to start testing."}
-                          </p>
-                        )}
-                        {chatMessages.map((message) => (
-                          <div
-                            key={message.id}
-                            className={cn(
-                              "max-w-[min(86%,42rem)] rounded-[24px] px-4 py-[14px] text-[0.96rem] leading-[1.6] shadow-[0_0_0_1px_rgb(240_238_230_/_88%)] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]",
-                              message.role === "user"
-                                ? "ml-auto bg-[#c96442] text-[#faf9f5] shadow-[0_18px_38px_rgb(201_100_66_/_18%),0_0_0_1px_rgb(201_100_66_/_92%)]"
-                                : "border border-border/90 bg-card/95 text-foreground"
-                            )}
-                          >
-                            {message.content || (chatRunning ? "..." : "")}
-                          </div>
-                        ))}
-                      </div>
-                    </ScrollArea>
-
-                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] bg-[linear-gradient(180deg,rgb(245_244_237_/_0%)_0%,rgb(245_244_237_/_78%)_34%,rgb(245_244_237_/_96%)_62%,rgb(245_244_237_/_100%)_100%)] pt-7 dark:bg-[linear-gradient(180deg,rgb(20_20_19_/_0%)_0%,rgb(20_20_19_/_78%)_34%,rgb(20_20_19_/_96%)_62%,rgb(20_20_19_/_100%)_100%)]">
-                      <div className="pointer-events-auto flex flex-col gap-3 rounded-[28px] border border-border/90 bg-card/95 p-[18px] shadow-[0_0_0_1px_rgb(240_238_230_/_96%)] backdrop-blur-[16px] dark:shadow-[0_0_0_1px_rgb(48_48_46_/_96%)]">
-                        <Textarea
-                          value={chatInput}
-                          onChange={(event) => setChatInput(event.target.value)}
-                          placeholder="Send message for single chat test"
-                          className="min-h-24 resize-none rounded-none border-0 bg-transparent p-0 text-[0.98rem] leading-[1.6] text-foreground shadow-none outline-none placeholder:text-muted-foreground focus-visible:border-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
-                        />
-                        <div className="flex justify-end">
-                          <Button
-                            onClick={() =>
-                              runChat().catch((cause) =>
-                                setError(String(cause))
-                              )
-                            }
-                            disabled={chatRunning || !selectedModel}
-                          >
-                            <SendIcon data-icon="inline-start" />
-                            Send
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <PlaygroundPanel
+                  projectId={activeProject?.id || ""}
+                  modelOptions={modelOptions}
+                  selectedModelKey={selectedModelKey}
+                  selectedModel={selectedModel}
+                  mainPromptPath={mainPromptFile?.path || null}
+                  onSelectModelKey={setSelectedModelKey}
+                  onOpenClusterTest={openClusterTest}
+                  onOpenSettings={() => navigate("/settings")}
+                  onError={setError}
+                />
               ) : (
                 <ProjectFileExplorer
                   tree={tree}
@@ -766,7 +565,7 @@ export default function Home() {
             </div>
 
             <TooltipProvider delay={120}>
-              <div className="flex min-h-[72px] flex-none items-center gap-3 border-t border-border/90 bg-transparent px-4 py-3 lg:px-6">
+              <div className="flex min-h-[72px] shrink-0 items-center gap-3 border-t border-border/90 bg-transparent px-4 py-3 lg:px-6">
                 <div className="min-w-0 flex-1">
                   <span className="text-[0.72rem] tracking-[0.12px] text-muted-foreground uppercase">
                     {rightPanelView === "chat" ? "Chat" : "Files"}

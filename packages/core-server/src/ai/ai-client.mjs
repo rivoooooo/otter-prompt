@@ -1,3 +1,12 @@
+import { convertToModelMessages, streamText } from "ai"
+import { createAnthropic } from "@ai-sdk/anthropic"
+import { createOpenAI } from "@ai-sdk/openai"
+import {
+  getChatUploadRecord,
+  readChatUploadDataUrl,
+  readChatUploadText,
+} from "./chat-upload-store.mjs"
+
 function normalizeBaseUrl(baseUrl, fallback = "") {
   const value = String(baseUrl || fallback || "").trim()
   return value.replace(/\/+$/, "")
@@ -185,6 +194,167 @@ function getRequiredApiKey(apiStyle, apiKey) {
   }
 
   return resolvedApiKey
+}
+
+function resolveApiStyle(provider, apiStyle) {
+  return apiStyle === "anthropic" ||
+    String(provider || "")
+      .trim()
+      .toLowerCase() === "anthropic"
+    ? "anthropic"
+    : "openai"
+}
+
+function getResolvedModelId(model, apiStyle) {
+  const fallbackModel =
+    apiStyle === "anthropic"
+      ? process.env.OTTER_ANTHROPIC_MODEL || ""
+      : process.env.OTTER_MODEL || ""
+  const resolvedModel = String(model || fallbackModel).trim()
+
+  if (!resolvedModel) {
+    throw new Error(
+      apiStyle === "anthropic"
+        ? "Missing model for Anthropic-style provider"
+        : "Missing model for OpenAI-style provider"
+    )
+  }
+
+  return resolvedModel
+}
+
+function createLanguageModel({
+  provider,
+  model,
+  apiKey,
+  baseUrl,
+  apiStyle,
+}) {
+  const resolvedApiStyle = resolveApiStyle(provider, apiStyle)
+  const resolvedModel = getResolvedModelId(model, resolvedApiStyle)
+  const resolvedApiKey = getRequiredApiKey(resolvedApiStyle, apiKey)
+
+  if (resolvedApiStyle === "anthropic") {
+    const anthropic = createAnthropic({
+      apiKey: resolvedApiKey,
+      baseURL: getAnthropicBaseUrl(baseUrl),
+    })
+
+    return anthropic(resolvedModel)
+  }
+
+  const openai = createOpenAI({
+    apiKey: resolvedApiKey,
+    baseURL: getOpenAIBaseUrl(baseUrl),
+  })
+
+  return openai(resolvedModel)
+}
+
+function convertPlaygroundDataPart(part) {
+  if (part.type === "data-text-file") {
+    const filename = part.data?.filename || "attachment.txt"
+    const mediaType = part.data?.mediaType || "text/plain"
+    const text = String(part.data?.text || "")
+
+    return {
+      type: "text",
+      text: `Attached text file "${filename}" (${mediaType}):\n\n${text}`,
+    }
+  }
+
+  if (part.type === "data-uploaded-file") {
+    const filename = part.data?.filename || "attachment"
+    const mediaType = part.data?.mediaType || "application/octet-stream"
+    const size = Number(part.data?.size || 0)
+
+    return {
+      type: "text",
+      text: `Attached file metadata:\n- filename: ${filename}\n- media type: ${mediaType}\n- size: ${size} bytes\n- note: binary content is attached in the UI but not inlined into the model request`,
+    }
+  }
+
+  return undefined
+}
+
+async function hydrateUploadRefPart(part) {
+  const uploadId = String(part.data?.uploadId || "").trim()
+  if (!uploadId) {
+    return undefined
+  }
+
+  const record = await getChatUploadRecord(uploadId)
+  if (!record) {
+    const filename = part.data?.filename || "attachment"
+    throw new Error(`Attachment "${filename}" is unavailable or expired.`)
+  }
+
+  if (record.kind === "image") {
+    const payload = await readChatUploadDataUrl(uploadId)
+    if (!payload) {
+      throw new Error(`Attachment "${record.filename}" is unavailable.`)
+    }
+
+    return {
+      type: "file",
+      filename: record.filename,
+      mediaType: record.mediaType,
+      url: payload.dataUrl,
+    }
+  }
+
+  if (record.kind === "text") {
+    const payload = await readChatUploadText(uploadId)
+    if (!payload) {
+      throw new Error(`Attachment "${record.filename}" is unavailable.`)
+    }
+
+    return {
+      type: "data-text-file",
+      data: {
+        filename: record.filename,
+        mediaType: record.mediaType,
+        size: record.size,
+        text: payload.text,
+      },
+    }
+  }
+
+  return {
+    type: "data-uploaded-file",
+    data: {
+      filename: record.filename,
+      mediaType: record.mediaType,
+      size: record.size,
+    },
+  }
+}
+
+async function hydratePlaygroundMessages(messages) {
+  return Promise.all(
+    messages.map(async (message) => {
+      if (!message || typeof message !== "object" || !Array.isArray(message.parts)) {
+        return message
+      }
+
+      const parts = (
+        await Promise.all(
+          message.parts.map(async (part) => {
+            if (part?.type === "data-upload-ref") {
+              return hydrateUploadRefPart(part)
+            }
+
+            return part
+          })
+        )
+      ).filter(Boolean)
+
+      return {
+        ...message,
+        parts,
+      }
+    })
+  )
 }
 
 async function streamOpenAIStyleChat({
@@ -423,13 +593,7 @@ export async function streamChat({
   baseUrl,
   apiStyle,
 }) {
-  const resolvedApiStyle =
-    apiStyle === "anthropic" ||
-    String(provider || "")
-      .trim()
-      .toLowerCase() === "anthropic"
-      ? "anthropic"
-      : "openai"
+  const resolvedApiStyle = resolveApiStyle(provider, apiStyle)
 
   if (resolvedApiStyle === "anthropic") {
     return streamAnthropicStyleChat({
@@ -450,4 +614,44 @@ export async function streamChat({
     baseUrl,
     write,
   })
+}
+
+export async function streamChatUI({
+  messages,
+  systemPrompt,
+  provider,
+  model,
+  response,
+  apiKey,
+  baseUrl,
+  apiStyle,
+}) {
+  const resolvedApiStyle = resolveApiStyle(provider, apiStyle)
+
+  try {
+    const hydratedMessages = await hydratePlaygroundMessages(messages)
+    const result = streamText({
+      model: createLanguageModel({
+        provider,
+        model,
+        apiKey,
+        baseUrl,
+        apiStyle: resolvedApiStyle,
+      }),
+      system: systemPrompt || undefined,
+      messages: await convertToModelMessages(hydratedMessages, {
+        convertDataPart: convertPlaygroundDataPart,
+      }),
+    })
+
+    result.pipeUIMessageStreamToResponse(response, {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    })
+  } catch (error) {
+    throw new Error(normalizeProviderError(resolvedApiStyle, error))
+  }
 }

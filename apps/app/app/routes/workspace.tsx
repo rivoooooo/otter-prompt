@@ -395,6 +395,7 @@ export default function WorkspaceRoute() {
     <SidebarProvider
       open={sidebarOpen}
       onOpenChange={setSidebarOpen}
+      className="h-svh overflow-hidden"
       style={
         {
           "--sidebar": "var(--background)",
@@ -530,7 +531,7 @@ export default function WorkspaceRoute() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="min-w-0 overflow-hidden">
         <Outlet context={context} />
       </SidebarInset>
 

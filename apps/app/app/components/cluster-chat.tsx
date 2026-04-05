@@ -1,31 +1,39 @@
-import { useEffect, useMemo, useState } from "react"
-import { PlusIcon, SendIcon } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useChat } from "@ai-sdk/react"
+import { PlusIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
-import { ScrollArea } from "@workspace/ui/components/scroll-area"
-import { Separator } from "@workspace/ui/components/separator"
-import { Textarea } from "@workspace/ui/components/textarea"
-import { cn } from "@workspace/ui/lib/utils"
-import { apiStream } from "../lib/api-client"
 import type { ProviderModelRuntimeConfig } from "../lib/app-settings"
-
-type ClusterMessage = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-}
+import { ChatTranscript } from "./playground/chat-ui"
+import { PlaygroundComposer } from "./playground/composer"
+import { PlaygroundModelPicker } from "./playground/model-picker"
+import type { PlaygroundUIMessage } from "./playground/types"
+import type { ComposerAttachment } from "./playground/utils"
+import {
+  buildUserMessageParts,
+  cloneMessageParts,
+  createComposerAttachments,
+  createPlaygroundTransport,
+  getErrorMessage,
+  isRunningStatus,
+  releaseComposerAttachments,
+  uploadComposerAttachments,
+} from "./playground/utils"
 
 type ClusterThread = {
   id: string
   title: string
   modelKey: string
-  messages: ClusterMessage[]
-  running: boolean
 }
 
 type ClusterChatProps = {
   projectId: string
   modelOptions: ProviderModelRuntimeConfig[]
   defaultModelKey: string
+}
+
+type BroadcastSubmission = {
+  id: string
+  parts: PlaygroundUIMessage["parts"]
 }
 
 const nextId = () => Math.random().toString(36).slice(2)
@@ -35,9 +43,104 @@ function createThread(modelKey: string, index: number): ClusterThread {
     id: nextId(),
     title: `Cluster ${index}`,
     modelKey,
-    messages: [],
-    running: false,
   }
+}
+
+function ClusterThreadPanel({
+  thread,
+  projectId,
+  modelOptions,
+  submission,
+  onModelKeyChange,
+  onRunningChange,
+}: {
+  thread: ClusterThread
+  projectId: string
+  modelOptions: ProviderModelRuntimeConfig[]
+  submission: BroadcastSubmission | null
+  onModelKeyChange: (threadId: string, modelKey: string) => void
+  onRunningChange: (threadId: string, running: boolean) => void
+}) {
+  const modelOptionMap = useMemo(
+    () => new Map(modelOptions.map((option) => [option.key, option])),
+    [modelOptions]
+  )
+  const config = modelOptionMap.get(thread.modelKey) || null
+  const transport = useMemo(
+    () =>
+      createPlaygroundTransport({
+        providerId: config?.providerId || "",
+        modelId: config?.modelId || "",
+        projectId,
+      }),
+    [config?.modelId, config?.providerId, projectId]
+  )
+  const chat = useChat<PlaygroundUIMessage>({ transport })
+  const lastSubmissionIdRef = useRef("")
+  const running = isRunningStatus(chat.status)
+
+  useEffect(() => {
+    onRunningChange(thread.id, running)
+  }, [onRunningChange, running, thread.id])
+
+  useEffect(() => {
+    if (!submission || lastSubmissionIdRef.current === submission.id || !config) {
+      return
+    }
+
+    lastSubmissionIdRef.current = submission.id
+    void chat.sendMessage({
+      parts: cloneMessageParts(submission.parts),
+    })
+  }, [chat, config, submission])
+
+  return (
+    <section className="flex min-h-0 flex-col rounded-[28px] border border-[#3a3935] bg-[#1b1b19]/88 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.18)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[0.72rem] uppercase tracking-[0.16em] text-[#87867f]">
+            <span>{thread.title}</span>
+            <span className="h-px w-8 bg-[#3a3935]" />
+            <span>{running ? "Streaming" : "Ready"}</span>
+          </div>
+          <h3 className="font-heading text-[1.2rem] leading-[1.15] text-[#faf9f5]">
+            {config ? config.modelLabel : "Select a model"}
+          </h3>
+          <p className="text-sm text-[#b0aea5]">
+            {config
+              ? `${config.providerLabel} / ${config.modelId}`
+              : "Choose a runtime model for this cluster."}
+          </p>
+        </div>
+
+        <div className="min-w-[14rem]">
+          <PlaygroundModelPicker
+            modelOptions={modelOptions}
+            selectedModelKey={thread.modelKey}
+            selectedModel={config}
+            onSelectModelKey={(value) => onModelKeyChange(thread.id, value)}
+            className="w-full border-[#3a3935] bg-[#141413] text-[#faf9f5] hover:bg-[#1e1e1c]"
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 min-h-0 flex-1 rounded-[22px] border border-[#30302e] bg-[#141413]/72">
+        <ChatTranscript
+          messages={chat.messages}
+          status={chat.status}
+          error={chat.error}
+          emptyState="This cluster has not received a broadcast yet."
+          contentClassName="pb-6"
+          emptyClassName="text-[#b0aea5]"
+          onRegenerate={
+            config && chat.messages.length > 0
+              ? () => void chat.regenerate()
+              : undefined
+          }
+        />
+      </div>
+    </section>
+  )
 }
 
 export function ClusterChat({
@@ -46,17 +149,29 @@ export function ClusterChat({
   defaultModelKey,
 }: ClusterChatProps) {
   const [input, setInput] = useState("")
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>([])
   const [threads, setThreads] = useState<ClusterThread[]>([
     createThread(defaultModelKey, 1),
   ])
+  const [threadRunning, setThreadRunning] = useState<Record<string, boolean>>({})
+  const [submission, setSubmission] = useState<BroadcastSubmission | null>(null)
+  const [composerError, setComposerError] = useState("")
+  const attachmentsRef = useRef(attachments)
 
   const running = useMemo(
-    () => threads.some((thread) => thread.running),
-    [threads]
+    () => Object.values(threadRunning).some(Boolean),
+    [threadRunning]
   )
-  const modelOptionMap = useMemo(
-    () => new Map(modelOptions.map((option) => [option.key, option])),
-    [modelOptions]
+
+  useEffect(() => {
+    attachmentsRef.current = attachments
+  }, [attachments])
+
+  useEffect(
+    () => () => {
+      releaseComposerAttachments(attachmentsRef.current)
+    },
+    []
   )
 
   useEffect(() => {
@@ -73,160 +188,90 @@ export function ClusterChat({
     setThreads((current) =>
       current.map((thread, index) => ({
         ...thread,
-        modelKey:
-          modelOptionMap.has(thread.modelKey) && thread.modelKey
-            ? thread.modelKey
-            : current.length === 1 && index === 0 && defaultModelKey
-              ? defaultModelKey
-              : modelOptions[0]?.key || "",
+        modelKey: modelOptions.some((option) => option.key === thread.modelKey)
+          ? thread.modelKey
+          : current.length === 1 && index === 0 && defaultModelKey
+            ? defaultModelKey
+            : modelOptions[0]?.key || "",
       }))
     )
-  }, [defaultModelKey, modelOptionMap, modelOptions])
+  }, [defaultModelKey, modelOptions])
 
-  async function streamThread(
-    thread: ClusterThread,
-    message: string,
-    assistantId: string
-  ) {
-    const config = modelOptionMap.get(thread.modelKey)
-    if (!config) {
-      throw new Error("No runtime model selected for this cluster")
-    }
+  function removeAttachment(attachmentId: string) {
+    setAttachments((current) => {
+      const removed = current.find((attachment) => attachment.id === attachmentId)
+      if (removed) {
+        releaseComposerAttachments([removed])
+      }
 
-    const response = await apiStream("/chat/stream", {
-      message,
-      providerId: config.providerId,
-      modelId: config.modelId,
-      projectId,
+      return current.filter((attachment) => attachment.id !== attachmentId)
     })
+  }
 
-    if (!response.ok || !response.body) {
-      throw new Error(`chat stream failed for ${thread.title}`)
-    }
+  function clearComposerState() {
+    setInput("")
+    setComposerError("")
+    setAttachments((current) => {
+      releaseComposerAttachments(current)
+      return []
+    })
+  }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
-
-    while (true) {
-      const { value, done } = await reader.read()
-      if (done) {
-        break
-      }
-
-      buffer += decoder.decode(value, { stream: true })
-      const events = buffer.split("\n\n")
-      buffer = events.pop() || ""
-
-      for (const event of events) {
-        if (!event.startsWith("data: ")) {
-          continue
-        }
-
-        const payload = JSON.parse(event.slice(6)) as { chunk?: string }
-        if (!payload.chunk) {
-          continue
-        }
-
-        setThreads((current) =>
-          current.map((candidate) => {
-            if (candidate.id !== thread.id) {
-              return candidate
-            }
-
-            return {
-              ...candidate,
-              messages: candidate.messages.map((messageItem) =>
-                messageItem.id === assistantId
-                  ? {
-                      ...messageItem,
-                      content: messageItem.content + payload.chunk,
-                    }
-                  : messageItem
-              ),
-            }
-          })
-        )
-      }
+  async function handleAddFiles(fileList: FileList | File[]) {
+    try {
+      const nextAttachments = await createComposerAttachments(fileList)
+      setComposerError("")
+      setAttachments((current) => [...current, ...nextAttachments])
+    } catch (error) {
+      setComposerError(getErrorMessage(error))
     }
   }
 
-  async function send() {
-    if (!input.trim() || running || modelOptions.length === 0) {
+  async function handleBroadcast({
+    text,
+    attachments: nextAttachments,
+  }: {
+    text: string
+    attachments: ComposerAttachment[]
+  }) {
+    if (running || modelOptions.length === 0) {
       return
     }
 
-    const userMessage = input
-    setInput("")
+    try {
+      const uploads = await uploadComposerAttachments(nextAttachments)
+      const parts = buildUserMessageParts(text, uploads)
 
-    const pending = threads.map((thread) => {
-      const userId = nextId()
-      const assistantId = nextId()
+      if (parts.length === 0) {
+        return
+      }
 
-      setThreads((current) =>
-        current.map((candidate) =>
-          candidate.id === thread.id
-            ? {
-                ...candidate,
-                running: true,
-                messages: [
-                  ...candidate.messages,
-                  { id: userId, role: "user", content: userMessage },
-                  { id: assistantId, role: "assistant", content: "" },
-                ],
-              }
-            : candidate
-        )
-      )
-
-      return streamThread(thread, userMessage, assistantId)
-        .catch((cause) => {
-          setThreads((current) =>
-            current.map((candidate) =>
-              candidate.id === thread.id
-                ? {
-                    ...candidate,
-                    messages: candidate.messages.map((messageItem) =>
-                      messageItem.id === assistantId
-                        ? {
-                            ...messageItem,
-                            content: `Error: ${String(cause)}`,
-                          }
-                        : messageItem
-                    ),
-                  }
-                : candidate
-            )
-          )
-        })
-        .finally(() => {
-          setThreads((current) =>
-            current.map((candidate) =>
-              candidate.id === thread.id
-                ? {
-                    ...candidate,
-                    running: false,
-                  }
-                : candidate
-            )
-          )
-        })
-    })
-
-    await Promise.all(pending)
+      setComposerError("")
+      setSubmission({
+        id: nextId(),
+        parts,
+      })
+      clearComposerState()
+    } catch (error) {
+      setComposerError(getErrorMessage(error))
+    }
   }
 
   return (
-    <div className="flex h-full flex-col gap-3">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-lg text-[#faf9f5]">Cluster Test</h2>
+    <div className="flex h-full flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
+          <h2 className="font-heading text-[1.35rem] text-[#faf9f5]">
+            Cluster Test
+          </h2>
           <p className="text-sm text-[#b0aea5]">
-            Compare multiple provider/model runs side by side.
+            Broadcast one prompt and one attachment set across multiple model threads.
           </p>
         </div>
+
         <Button
           variant="outline"
+          className="border-[#3a3935] bg-[#1b1b19] text-[#faf9f5] hover:bg-[#252522]"
           onClick={() =>
             setThreads((current) => [
               ...current,
@@ -243,110 +288,52 @@ export function ClusterChat({
         </Button>
       </div>
 
-      <Separator className="bg-[#30302e]" />
+      {composerError ? (
+        <div className="rounded-[22px] border border-[#5b382d] bg-[#2d211d] px-4 py-3 text-sm text-[#f2c7b9]">
+          {composerError}
+        </div>
+      ) : null}
 
-      <div className="grid flex-1 gap-6 lg:grid-cols-2">
-        {threads.map((thread) => {
-          const config = modelOptionMap.get(thread.modelKey)
-
-          return (
-            <section
-              key={thread.id}
-              className="flex min-h-0 flex-col gap-3 border-t border-[#30302e] pt-4"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-heading text-xl leading-[1.15]">
-                    {thread.title}
-                  </h3>
-                  <p className="text-sm text-[#b0aea5]">
-                    Compare output with independent runtime model settings.
-                  </p>
-                </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[#3d3d3a] bg-[#1c1c1b] px-2.5 py-0.5 text-xs text-[#b0aea5]">
-                  {thread.running ? "Running" : "Idle"}
-                </span>
-              </div>
-
-              <div className="grid gap-3">
-                <label className="flex min-w-0 flex-col gap-2">
-                  <span className="text-sm text-[#b0aea5]">Model</span>
-                  <select
-                    value={thread.modelKey}
-                    onChange={(event) =>
-                      setThreads((current) =>
-                        current.map((candidate) =>
-                          candidate.id === thread.id
-                            ? { ...candidate, modelKey: event.target.value }
-                            : candidate
-                        )
-                      )
-                    }
-                    disabled={modelOptions.length === 0}
-                    className="h-11 rounded-[16px] border border-[#3d3d3a] bg-[#141413] px-3 text-sm text-[#faf9f5] transition-colors outline-none focus:border-[#c96442] disabled:opacity-60"
-                  >
-                    {modelOptions.length === 0 ? (
-                      <option value="">No enabled models</option>
-                    ) : null}
-                    {modelOptions.map((option) => (
-                      <option key={option.key} value={option.key}>
-                        {option.providerLabel} / {option.modelLabel}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <p className="text-xs text-[#87867f]">
-                  {config
-                    ? `${config.apiStyle === "openai" ? "OpenAI" : "Anthropic"} style`
-                    : "Select a runtime model to start."}
-                </p>
-              </div>
-
-              <Separator className="bg-[#30302e]" />
-
-              <ScrollArea className="min-h-0 flex-1">
-                <div className="flex flex-col gap-2 pr-4 pb-4">
-                  {thread.messages.length === 0 && (
-                    <p className="text-sm text-[#87867f]">No messages yet.</p>
-                  )}
-                  {thread.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={cn(
-                        "max-w-[92%] rounded-2xl px-3 py-2 text-sm",
-                        message.role === "user"
-                          ? "ml-auto bg-[#c96442] text-[#faf9f5]"
-                          : "border border-[#3d3d3a] bg-[#1c1c1b] text-[#faf9f5]"
-                      )}
-                    >
-                      {message.content || (thread.running ? "..." : "")}
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </section>
-          )
-        })}
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+        {threads.map((thread) => (
+          <ClusterThreadPanel
+            key={thread.id}
+            thread={thread}
+            projectId={projectId}
+            modelOptions={modelOptions}
+            submission={submission}
+            onModelKeyChange={(threadId, modelKey) =>
+              setThreads((current) =>
+                current.map((item) =>
+                  item.id === threadId ? { ...item, modelKey } : item
+                )
+              )
+            }
+            onRunningChange={(threadId, nextRunning) =>
+              setThreadRunning((current) => ({
+                ...current,
+                [threadId]: nextRunning,
+              }))
+            }
+          />
+        ))}
       </div>
 
-      <div className="sticky bottom-0 mt-0 border-t border-[#3d3d3a] bg-transparent pt-4 shadow-none">
-        <div className="flex flex-col gap-2">
-          <Textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Send one message to all clusters"
-            className="min-h-24 border-[#3d3d3a] bg-[#141413] text-[#faf9f5] placeholder:text-[#87867f]"
-          />
-          <div className="flex justify-end">
-            <Button
-              onClick={() => send().catch(() => undefined)}
-              disabled={running || modelOptions.length === 0}
-            >
-              <SendIcon data-icon="inline-start" />
-              Send to All
-            </Button>
-          </div>
-        </div>
+      <div className="rounded-[30px] border border-[#3a3935] bg-[#171715]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.2)]">
+        <PlaygroundComposer
+          value={input}
+          attachments={attachments}
+          status={running ? "streaming" : "ready"}
+          disabled={modelOptions.length === 0}
+          placeholder="Broadcast a prompt and shared attachments to every cluster"
+          hint="Attachments are uploaded once, then the resulting upload references are fanned out to every thread."
+          onValueChange={setInput}
+          onAddFiles={handleAddFiles}
+          onRemoveAttachment={removeAttachment}
+          onReset={clearComposerState}
+          onSubmit={handleBroadcast}
+          onError={setComposerError}
+        />
       </div>
     </div>
   )
