@@ -29,6 +29,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
+import { cn } from "@workspace/ui/lib/utils"
 import { DirectoryBrowser } from "../components/directory-browser"
 import { apiRequest } from "../lib/api-client"
 import {
@@ -531,7 +532,14 @@ export default function WorkspaceRoute() {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0 overflow-hidden">
+      <SidebarInset
+        className={cn(
+          "min-w-0",
+          location.pathname.startsWith("/settings")
+            ? "min-h-0 overflow-y-auto"
+            : "overflow-hidden"
+        )}
+      >
         <Outlet context={context} />
       </SidebarInset>
 

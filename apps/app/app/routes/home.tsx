@@ -137,6 +137,52 @@ function formatCount(value: number) {
 }
 
 const DESKTOP_RIGHT_PANEL_MIN_SIZE = 32
+const PLAYGROUND_MODEL_BY_PROJECT_STORAGE_KEY =
+  "otter.playground.modelByProject"
+
+function getStoredPlaygroundModelByProject() {
+  if (typeof window === "undefined") {
+    return {}
+  }
+
+  const raw = window.localStorage.getItem(PLAYGROUND_MODEL_BY_PROJECT_STORAGE_KEY)
+  if (!raw) {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== "object") {
+      return {}
+    }
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        ([projectId, modelKey]) =>
+          typeof projectId === "string" && typeof modelKey === "string"
+      )
+    ) as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+function getStoredPlaygroundModelKey(projectId: string) {
+  return getStoredPlaygroundModelByProject()[projectId] || ""
+}
+
+function setStoredPlaygroundModelKey(projectId: string, modelKey: string) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  const current = getStoredPlaygroundModelByProject()
+  current[projectId] = modelKey
+  window.localStorage.setItem(
+    PLAYGROUND_MODEL_BY_PROJECT_STORAGE_KEY,
+    JSON.stringify(current)
+  )
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -169,6 +215,7 @@ export default function Home() {
   const [renameRunning, setRenameRunning] = useState(false)
   const fileNameEditorRef = useRef<HTMLDivElement | null>(null)
   const fileBaseNameInputRef = useRef<HTMLInputElement | null>(null)
+  const previousProjectIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const syncSettings = () => setSettings(getAppSettings())
@@ -239,18 +286,43 @@ export default function Home() {
     : fileExtension
 
   useEffect(() => {
-    if (!selectedModelKey && modelOptions[0]?.key) {
-      setSelectedModelKey(modelOptions[0].key)
+    const projectId = activeProject?.id || null
+    const modelKeySet = new Set(modelOptions.map((option) => option.key))
+    const projectChanged = previousProjectIdRef.current !== projectId
+    previousProjectIdRef.current = projectId
+
+    if (!projectId) {
+      if (selectedModelKey) {
+        setSelectedModelKey("")
+      }
       return
     }
 
-    if (
-      selectedModelKey &&
-      !modelOptions.some((option) => option.key === selectedModelKey)
-    ) {
-      setSelectedModelKey(modelOptions[0]?.key || "")
+    if (!projectChanged && selectedModelKey && modelKeySet.has(selectedModelKey)) {
+      return
     }
-  }, [modelOptions, selectedModelKey])
+
+    const storedModelKey = getStoredPlaygroundModelKey(projectId)
+    if (storedModelKey && modelKeySet.has(storedModelKey)) {
+      if (selectedModelKey !== storedModelKey) {
+        setSelectedModelKey(storedModelKey)
+      }
+      return
+    }
+
+    const fallbackModelKey = modelOptions[0]?.key || ""
+    if (selectedModelKey !== fallbackModelKey) {
+      setSelectedModelKey(fallbackModelKey)
+    }
+  }, [activeProject?.id, modelOptions, selectedModelKey])
+
+  useEffect(() => {
+    if (!activeProject?.id || !selectedModelKey) {
+      return
+    }
+
+    setStoredPlaygroundModelKey(activeProject.id, selectedModelKey)
+  }, [activeProject?.id, selectedModelKey])
 
   async function saveWorkspace() {
     await saveActiveFile()
@@ -620,11 +692,11 @@ export default function Home() {
       </ResizablePanelGroup>
 
       <Dialog open={clusterOpen} onOpenChange={setClusterOpen}>
-        <DialogContent className="max-w-[95vw] overflow-hidden border-border bg-background p-0 text-foreground">
+        <DialogContent className="flex h-[95vh] w-[95vw] min-h-[95vh] min-w-[95vw] max-h-[95vh] max-w-[95vw] flex-col gap-0 overflow-hidden border-border bg-background p-0 text-foreground sm:max-w-[95vw]">
           <DialogHeader className="px-6 pt-6">
             <DialogTitle>Cluster Test</DialogTitle>
           </DialogHeader>
-          <div className="h-[80svh] border-t border-border px-6 py-5">
+          <div className="min-h-0 flex-1 border-t border-border px-6 py-5">
             <ClusterChat
               projectId={activeProject?.id || ""}
               modelOptions={modelOptions}

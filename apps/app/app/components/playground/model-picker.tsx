@@ -1,4 +1,5 @@
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import type { ProviderModelRuntimeConfig } from "../../lib/app-settings"
@@ -46,9 +47,13 @@ export function PlaygroundModelPicker({
   className,
 }: PlaygroundModelPickerProps) {
   const groups = groupModelOptions(modelOptions)
+  const [open, setOpen] = useState(false)
 
   return (
-    <ModelSelector>
+    <ModelSelector
+      open={open}
+      onOpenChange={setOpen}
+    >
       <ModelSelectorTrigger
         render={
           <Button
@@ -79,7 +84,7 @@ export function PlaygroundModelPicker({
         <ChevronsUpDownIcon className="size-4 text-muted-foreground" />
       </ModelSelectorTrigger>
 
-      <ModelSelectorContent className="w-[min(var(--radix-popover-trigger-width),calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-[28px] border border-border/90 bg-card/98 p-0 shadow-[0_24px_80px_rgba(20,20,19,0.12)]">
+      <ModelSelectorContent className="min-w-md w-[min(var(--radix-popover-trigger-width),calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-[28px] border border-border/90 bg-card/98 p-0 shadow-[0_24px_80px_rgba(20,20,19,0.12)]">
         <ModelSelectorInput placeholder="Search models" />
         <ModelSelectorList className="max-h-[24rem]">
           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
@@ -94,7 +99,10 @@ export function PlaygroundModelPicker({
                     <ModelSelectorItem
                       key={option.key}
                       value={`${option.providerLabel} ${option.modelLabel} ${option.modelId}`}
-                      onSelect={() => onSelectModelKey(option.key)}
+                      onSelect={() => {
+                        onSelectModelKey(option.key)
+                        setOpen(false)
+                      }}
                       className="gap-2"
                     >
                       <ModelSelectorLogo

@@ -55,6 +55,8 @@ type PlaygroundComposerProps = {
   onError: (message: string) => void
   onStop?: () => void
   onSelectModelKey?: (value: string) => void
+  showResetButton?: boolean
+  showModelPicker?: boolean
 }
 
 async function captureScreenshotFile() {
@@ -142,6 +144,8 @@ export function PlaygroundComposer({
   onError,
   onStop,
   onSelectModelKey,
+  showResetButton = true,
+  showModelPicker = true,
 }: PlaygroundComposerProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -307,15 +311,15 @@ export function PlaygroundComposer({
         <PromptInputFooter
           className={
             layoutMode === "compact"
-              ? "border-t border-border/80 pt-2.5"
-              : "border-t border-border/80 pt-3"
+              ? "w-full flex-nowrap items-center gap-2 border-t border-border/80 pt-2.5"
+              : "w-full flex-nowrap items-center gap-2 border-t border-border/80 pt-3"
           }
         >
           <PromptInputTools
             className={
               layoutMode === "compact"
-                ? "min-w-0 flex-wrap gap-1.5"
-                : "min-w-0 flex-wrap gap-2"
+                ? "min-w-0 flex-1 items-center gap-1.5 overflow-hidden"
+                : "min-w-0 flex-1 items-center gap-2 overflow-hidden"
             }
           >
             <PromptInputActionMenu>
@@ -343,7 +347,7 @@ export function PlaygroundComposer({
                 className={
                   layoutMode === "compact"
                     ? "flex min-w-0 max-w-full items-center gap-1.5 rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground"
-                    : "flex min-w-0 items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs text-muted-foreground"
+                    : "flex min-w-0 max-w-full items-center gap-2 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs text-muted-foreground"
                 }
               >
                 <SparklesIcon className="size-3.5 shrink-0 text-[#c96442]" />
@@ -355,34 +359,40 @@ export function PlaygroundComposer({
           <PromptInputTools
             className={
               layoutMode === "compact"
-                ? "w-full flex-wrap items-center justify-between gap-1.5"
-                : "w-full flex-wrap items-center justify-end gap-2"
+                ? "ml-auto shrink-0 items-center justify-end gap-1.5"
+                : "ml-auto shrink-0 items-center justify-end gap-2"
             }
           >
-            {onSelectModelKey ? (
+            {onSelectModelKey && showModelPicker ? (
               <PlaygroundModelPicker
                 modelOptions={modelOptions}
                 selectedModelKey={selectedModelKey}
                 selectedModel={selectedModel}
                 onSelectModelKey={onSelectModelKey}
                 layoutMode={layoutMode}
-                className="w-full min-w-0"
+                className={
+                  layoutMode === "compact"
+                    ? "!w-auto min-w-[11.5rem] max-w-[16rem]"
+                    : "!w-auto min-w-[14rem] max-w-[24rem]"
+                }
               />
             ) : null}
 
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={disabled || (!value && attachments.length === 0)}
-              className={
-                layoutMode === "compact"
-                  ? "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/80 bg-background/90 px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-                  : "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-              }
-            >
-              <RotateCcwIcon className="size-4" />
-              Reset
-            </button>
+            {showResetButton ? (
+              <button
+                type="button"
+                onClick={onReset}
+                disabled={disabled || (!value && attachments.length === 0)}
+                className={
+                  layoutMode === "compact"
+                    ? "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/80 bg-background/90 px-2.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                    : "inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border/80 bg-background/90 px-3 text-sm text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                }
+              >
+                <RotateCcwIcon className="size-4" />
+                Reset
+              </button>
+            ) : null}
 
             <PromptInputSubmit
               status={submitStatus}

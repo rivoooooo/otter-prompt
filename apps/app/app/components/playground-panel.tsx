@@ -294,11 +294,6 @@ export function PlaygroundPanel({
               layoutMode={layoutMode}
               disabled={!selectedModel}
               placeholder="Send a prompt, markdown, or files to the playground"
-              hint={
-                selectedModel
-                  ? "Images stay visual, text files are injected as content, and other files are summarized for the model."
-                  : "Configure and enable a provider model to start chatting."
-              }
               modelOptions={modelOptions}
               selectedModelKey={selectedModelKey}
               selectedModel={selectedModel}
@@ -310,6 +305,7 @@ export function PlaygroundPanel({
               onError={onError}
               onStop={() => chat.stop()}
               onSelectModelKey={onSelectModelKey}
+              showResetButton={false}
             />
           </div>
         </div>

@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react"
 import { useChat } from "@ai-sdk/react"
 import { PlusIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
@@ -156,7 +162,16 @@ export function ClusterChat({
   const [threadRunning, setThreadRunning] = useState<Record<string, boolean>>({})
   const [submission, setSubmission] = useState<BroadcastSubmission | null>(null)
   const [composerError, setComposerError] = useState("")
+  const [isViewportDragging, setIsViewportDragging] = useState(false)
   const attachmentsRef = useRef(attachments)
+  const threadViewportRef = useRef<HTMLDivElement | null>(null)
+  const dragStateRef = useRef({
+    active: false,
+    startX: 0,
+    startY: 0,
+    startScrollLeft: 0,
+    startScrollTop: 0,
+  })
 
   const running = useMemo(
     () => Object.values(threadRunning).some(Boolean),
@@ -173,6 +188,44 @@ export function ClusterChat({
     },
     []
   )
+
+  useEffect(() => {
+    if (!isViewportDragging) {
+      return
+    }
+
+    const previousUserSelect = document.body.style.userSelect
+    const previousCursor = document.body.style.cursor
+    document.body.style.userSelect = "none"
+    document.body.style.cursor = "grabbing"
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const viewport = threadViewportRef.current
+      const state = dragStateRef.current
+      if (!viewport || !state.active) {
+        return
+      }
+
+      viewport.scrollLeft = state.startScrollLeft - (event.clientX - state.startX)
+      viewport.scrollTop = state.startScrollTop - (event.clientY - state.startY)
+      event.preventDefault()
+    }
+
+    const endDragging = () => {
+      dragStateRef.current.active = false
+      setIsViewportDragging(false)
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", endDragging)
+
+    return () => {
+      document.body.style.userSelect = previousUserSelect
+      document.body.style.cursor = previousCursor
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", endDragging)
+    }
+  }, [isViewportDragging])
 
   useEffect(() => {
     if (modelOptions.length === 0) {
@@ -257,6 +310,38 @@ export function ClusterChat({
     }
   }
 
+  function handleThreadViewportMouseDown(
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
+    if (event.button !== 0) {
+      return
+    }
+
+    const target = event.target as HTMLElement
+    if (
+      target.closest(
+        "section,button,a,input,textarea,select,[role='button'],[contenteditable='true']"
+      )
+    ) {
+      return
+    }
+
+    const viewport = threadViewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    dragStateRef.current = {
+      active: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollLeft: viewport.scrollLeft,
+      startScrollTop: viewport.scrollTop,
+    }
+    setIsViewportDragging(true)
+    event.preventDefault()
+  }
+
   return (
     <div className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -294,29 +379,37 @@ export function ClusterChat({
         </div>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-        {threads.map((thread) => (
-          <ClusterThreadPanel
-            key={thread.id}
-            thread={thread}
-            projectId={projectId}
-            modelOptions={modelOptions}
-            submission={submission}
-            onModelKeyChange={(threadId, modelKey) =>
-              setThreads((current) =>
-                current.map((item) =>
-                  item.id === threadId ? { ...item, modelKey } : item
+      <div
+        ref={threadViewportRef}
+        className={`scrollbar-thin min-h-0 flex-1 overflow-auto rounded-[24px] border border-[#30302e]/70 bg-[#111110]/45 p-4 ${
+          isViewportDragging ? "cursor-grabbing select-none" : "cursor-grab"
+        }`}
+        onMouseDown={handleThreadViewportMouseDown}
+      >
+        <div className="grid min-h-full gap-4 lg:grid-cols-2">
+          {threads.map((thread) => (
+            <ClusterThreadPanel
+              key={thread.id}
+              thread={thread}
+              projectId={projectId}
+              modelOptions={modelOptions}
+              submission={submission}
+              onModelKeyChange={(threadId, modelKey) =>
+                setThreads((current) =>
+                  current.map((item) =>
+                    item.id === threadId ? { ...item, modelKey } : item
+                  )
                 )
-              )
-            }
-            onRunningChange={(threadId, nextRunning) =>
-              setThreadRunning((current) => ({
-                ...current,
-                [threadId]: nextRunning,
-              }))
-            }
-          />
-        ))}
+              }
+              onRunningChange={(threadId, nextRunning) =>
+                setThreadRunning((current) => ({
+                  ...current,
+                  [threadId]: nextRunning,
+                }))
+              }
+            />
+          ))}
+        </div>
       </div>
 
       <div className="rounded-[30px] border border-[#3a3935] bg-[#171715]/92 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.2)]">
@@ -326,13 +419,14 @@ export function ClusterChat({
           status={running ? "streaming" : "ready"}
           disabled={modelOptions.length === 0}
           placeholder="Broadcast a prompt and shared attachments to every cluster"
-          hint="Attachments are uploaded once, then the resulting upload references are fanned out to every thread."
           onValueChange={setInput}
           onAddFiles={handleAddFiles}
           onRemoveAttachment={removeAttachment}
           onReset={clearComposerState}
           onSubmit={handleBroadcast}
           onError={setComposerError}
+          showResetButton={false}
+          showModelPicker={false}
         />
       </div>
     </div>

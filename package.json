@@ -5,7 +5,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "dev:app": "turbo dev --filter @otter-prompt/app",
+    "dev:app": "turbo dev --filter @otter-prompt/app --filter @otter-prompt/server",
     "dev:web": "turbo dev --filter @otter-prompt/web",
     "dev:server": "pnpm --filter @otter-prompt/server dev",
     "dev:core": "pnpm --filter @otter-prompt/core-server dev",

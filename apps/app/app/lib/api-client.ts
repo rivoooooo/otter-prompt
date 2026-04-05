@@ -7,7 +7,9 @@ export async function apiRequest<T>(
   const base = getServiceBaseUrl().replace(/\/+$/, "")
   const nextPath = path.startsWith("/") ? path : `/${path}`
   const headers = new Headers(init?.headers)
-  headers.set("Content-Type", headers.get("Content-Type") || "application/json")
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json")
+  }
 
   const response = await fetch(`${base}${nextPath}`, {
     ...init,
